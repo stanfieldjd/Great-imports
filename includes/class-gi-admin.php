@@ -16,9 +16,13 @@ final class GI_Admin {
     /** @var GI_Eventbrite_API_Client */
     private $api_client;
 
-    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client ) {
-        $this->importer   = $importer;
-        $this->api_client = $api_client;
+    /** @var GI_Exploratory_Report */
+    private $exploratory_report;
+
+    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client, GI_Exploratory_Report $exploratory_report ) {
+        $this->importer           = $importer;
+        $this->api_client         = $api_client;
+        $this->exploratory_report = $exploratory_report;
     }
 
     /**
@@ -29,6 +33,7 @@ final class GI_Admin {
         add_action( 'admin_bar_menu', array( $this, 'register_admin_bar' ), 90 );
         add_action( 'admin_post_gi_eventbrite_import_once', array( $this, 'handle_eventbrite_import_once' ) );
         add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
+        add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
     }
 
@@ -112,6 +117,19 @@ final class GI_Admin {
     }
 
     /**
+     * Handle exploratory report download.
+     */
+    public function handle_download_exploratory_report() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to download Great Imports reports.', 'great-imports' ) );
+        }
+
+        check_admin_referer( 'gi_download_exploratory_report' );
+
+        $this->exploratory_report->download();
+    }
+
+    /**
      * Handle one-time Eventbrite import form submission.
      */
     public function handle_eventbrite_import_once() {
@@ -172,6 +190,17 @@ final class GI_Admin {
                     <label for="gi_eventbrite_url" class="gi-label"><?php esc_html_e( 'Eventbrite URL', 'great-imports' ); ?></label>
                     <input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789" required />
                     <?php submit_button( __( 'Import once', 'great-imports' ), 'primary', 'submit', false ); ?>
+                </form>
+            </div>
+
+            <div class="gi-card">
+                <h2><?php esc_html_e( 'Exploratory Report', 'great-imports' ); ?></h2>
+                <p><?php esc_html_e( 'Download a sanitized JSON report showing plugin state, Events Manager detection, Eventbrite token status, candidate summaries, source URLs, Eventbrite IDs, fetch methods, status codes, errors, and all tracked Great Imports candidate metadata.', 'great-imports' ); ?></p>
+                <p><?php esc_html_e( 'Secret values are not exported.', 'great-imports' ); ?></p>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                    <?php wp_nonce_field( 'gi_download_exploratory_report' ); ?>
+                    <input type="hidden" name="action" value="gi_download_exploratory_report" />
+                    <?php submit_button( __( 'Download Exploratory Report', 'great-imports' ), 'secondary', 'submit', false ); ?>
                 </form>
             </div>
 
