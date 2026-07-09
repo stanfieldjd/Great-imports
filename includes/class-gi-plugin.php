@@ -17,6 +17,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-store.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-client.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
 
 final class GI_Plugin {
@@ -53,7 +54,8 @@ final class GI_Plugin {
                     $api_client,
                     new GI_Eventbrite_API_Normalizer()
                 ),
-                $api_client
+                $api_client,
+                new GI_Exploratory_Report( $api_client )
             );
             $admin->register_hooks();
         }
