@@ -118,7 +118,7 @@ final class GI_Exploratory_Report {
                 'post_id'       => (int) $post->ID,
                 'post_status'   => sanitize_text_field( (string) $post->post_status ),
                 'post_title'    => sanitize_text_field( get_the_title( $post ) ),
-                'post_content'  => wp_kses_post( (string) $post->post_content ),
+                'post_content'  => (string) $post->post_content,
                 'created_at'    => sanitize_text_field( (string) $post->post_date ),
                 'modified_at'   => sanitize_text_field( (string) $post->post_modified ),
                 'tracked_meta'  => $meta,
@@ -229,7 +229,7 @@ final class GI_Exploratory_Report {
     }
 
     /**
-     * Sanitize report values and redact secret-like keys.
+     * Sanitize report values and redact secret-like keys while preserving raw evidence.
      *
      * @param string $key Field key.
      * @param mixed  $value Field value.
@@ -256,7 +256,7 @@ final class GI_Exploratory_Report {
             return $value;
         }
 
-        return wp_kses_post( (string) $value );
+        return (string) $value;
     }
 
     /**
