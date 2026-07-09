@@ -57,11 +57,41 @@ final class GI_Url_Validator {
             );
         }
 
+        $url = $this->normalize_eventbrite_url( $url );
+
         return array(
             'valid' => true,
             'url'   => $url,
             'error' => '',
         );
+    }
+
+    /**
+     * Normalize Eventbrite detail URLs by removing known tracking-only parameters.
+     *
+     * @param string $url Eventbrite URL.
+     */
+    private function normalize_eventbrite_url( $url ) {
+        $url = preg_replace( '/#.*/', '', $url );
+
+        $tracking_params = array(
+            'aff',
+            'aff_sub',
+            'aff_sub2',
+            'utm_source',
+            'utm_medium',
+            'utm_campaign',
+            'utm_content',
+            'utm_term',
+            'mc_cid',
+            'mc_eid',
+            'fbclid',
+            'gclid',
+            '_gl',
+            '_ga',
+        );
+
+        return esc_url_raw( remove_query_arg( $tracking_params, $url ) );
     }
 
     /**
