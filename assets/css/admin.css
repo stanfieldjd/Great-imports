@@ -1,0 +1,18 @@
+.gi-wrap .gi-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    margin: 16px 0;
+    padding: 16px;
+    max-width: 1100px;
+}
+
+.gi-label {
+    display: block;
+    font-weight: 600;
+    margin: 12px 0 6px;
+}
+
+.gi-url-input {
+    margin-right: 8px;
+    min-width: 520px;
+}
