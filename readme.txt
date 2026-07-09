@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,9 +19,17 @@ The Exploratory Report download exports a sanitized JSON report with plugin stat
 
 Candidate data is a downstream interpretation of evidence, not the evidence source. Relevance decisions, normalization, filtering, mapping, and handoff happen after evidence capture.
 
+Uninstall removes Great Imports-owned data: private token, Great Imports options, `gi_candidate` posts, `gi_evidence` posts, and Great Imports `_gi_` post metadata. It does not delete Events Manager events, Events Manager locations, or media.
+
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.1 =
+* Fixed uninstall cleanup so Great Imports-owned data is always removed when the plugin is deleted.
+* Removed the uninstall cleanup dependency on `great_imports_delete_data_on_uninstall`.
+* Deletes Great Imports token/options, candidate records, evidence records, and `_gi_` metadata during uninstall.
+* Does not delete Events Manager events, locations, or media.
 
 = 0.2.0 =
 * Added full-view-first evidence capture foundation.
