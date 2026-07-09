@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class GI_Post_Types {
     /**
-     * Register private candidate storage.
+     * Register private Great Imports storage.
      */
     public static function register() {
         register_post_type(
@@ -20,6 +20,23 @@ final class GI_Post_Types {
                 'labels'              => array(
                     'name'          => __( 'Great Import Candidates', 'great-imports' ),
                     'singular_name' => __( 'Great Import Candidate', 'great-imports' ),
+                ),
+                'public'              => false,
+                'show_ui'             => false,
+                'show_in_menu'        => false,
+                'supports'            => array( 'title', 'editor' ),
+                'capability_type'     => 'post',
+                'map_meta_cap'        => true,
+                'exclude_from_search' => true,
+            )
+        );
+
+        register_post_type(
+            'gi_evidence',
+            array(
+                'labels'              => array(
+                    'name'          => __( 'Great Import Evidence', 'great-imports' ),
+                    'singular_name' => __( 'Great Import Evidence Record', 'great-imports' ),
                 ),
                 'public'              => false,
                 'show_ui'             => false,
