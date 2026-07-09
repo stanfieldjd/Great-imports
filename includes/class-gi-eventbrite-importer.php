@@ -44,7 +44,8 @@ final class GI_Eventbrite_Importer {
      * @return array{success:bool,message:string,post_id:int,updated:bool,event:array<string,mixed>}
      */
     public function import_once( $raw_url ) {
-        $validated = $this->validator->validate_eventbrite_url( $raw_url );
+        $submitted_url = trim( (string) $raw_url );
+        $validated     = $this->validator->validate_eventbrite_url( $submitted_url );
 
         if ( ! $validated['valid'] ) {
             return array(
@@ -56,7 +57,8 @@ final class GI_Eventbrite_Importer {
             );
         }
 
-        $api_error = '';
+        $api_error         = '';
+        $api_error_payload = array();
 
         if ( $this->api_client->has_private_token() ) {
             $api_result = $this->api_client->get_event( $validated['event_id'] );
@@ -66,17 +68,21 @@ final class GI_Eventbrite_Importer {
                 $description        = $description_result['success'] ? $description_result['description'] : '';
                 $candidate          = $this->api_normalizer->normalize_event( $api_result['event'], $description );
 
-                $candidate['source_url']             = $validated['url'];
-                $candidate['eventbrite_event_id']    = $validated['event_id'];
-                $candidate['fetch_method']           = 'eventbrite_api';
-                $candidate['api_http_status']        = $api_result['status'];
-                $candidate['description_api_status'] = $description_result['status'];
-                $candidate['description_api_error']  = $description_result['success'] ? '' : $description_result['error'];
+                $candidate['submitted_url']                    = esc_url_raw( $submitted_url );
+                $candidate['source_url']                       = $validated['url'];
+                $candidate['eventbrite_event_id']              = $validated['event_id'];
+                $candidate['fetch_method']                     = 'eventbrite_api';
+                $candidate['api_http_status']                  = $api_result['status'];
+                $candidate['description_api_status']           = $description_result['status'];
+                $candidate['description_api_error']            = $description_result['success'] ? '' : $description_result['error'];
+                $candidate['raw_description_api_response']     = isset( $description_result['raw_payload'] ) ? $description_result['raw_payload'] : array();
+                $candidate['exploratory_report_data_coverage'] = 'api_event_payload,api_description_payload,normalized_candidate_fields';
 
                 return $this->store_candidate_result( $candidate );
             }
 
-            $api_error = $api_result['error'];
+            $api_error         = $api_result['error'];
+            $api_error_payload = $api_result['event'];
         }
 
         $fetched = $this->http->get_body( $validated['url'] );
@@ -84,7 +90,9 @@ final class GI_Eventbrite_Importer {
         if ( ! $fetched['success'] ) {
             return $this->store_failed_source_candidate(
                 $validated,
-                $this->combined_error( $api_error, $fetched['error'] )
+                $submitted_url,
+                $this->combined_error( $api_error, $fetched['error'] ),
+                $api_error_payload
             );
         }
 
@@ -93,16 +101,21 @@ final class GI_Eventbrite_Importer {
         if ( ! $parsed['success'] ) {
             return $this->store_failed_source_candidate(
                 $validated,
-                $this->combined_error( $api_error, $parsed['error'] )
+                $submitted_url,
+                $this->combined_error( $api_error, $parsed['error'] ),
+                $api_error_payload
             );
         }
 
-        $candidate                         = $parsed['event'];
-        $candidate['source_url']           = $validated['url'];
-        $candidate['eventbrite_event_id']  = $validated['event_id'];
-        $candidate['http_status']          = $fetched['status'];
-        $candidate['fetch_method']         = 'html_jsonld';
-        $candidate['api_fallback_message'] = $api_error;
+        $candidate                                      = $parsed['event'];
+        $candidate['submitted_url']                     = esc_url_raw( $submitted_url );
+        $candidate['source_url']                        = $validated['url'];
+        $candidate['eventbrite_event_id']               = $validated['event_id'];
+        $candidate['http_status']                       = $fetched['status'];
+        $candidate['fetch_method']                      = 'html_jsonld';
+        $candidate['api_fallback_message']              = $api_error;
+        $candidate['api_error_payload']                 = $api_error_payload;
+        $candidate['exploratory_report_data_coverage']  = 'html_schema_event_jsonld,normalized_candidate_fields';
 
         return $this->store_candidate_result( $candidate );
     }
@@ -139,21 +152,26 @@ final class GI_Eventbrite_Importer {
      * Store a non-fabricated failure candidate so blocked sources remain visible.
      *
      * @param array<string,string|bool> $validated Validated URL data.
+     * @param string                    $submitted_url Submitted URL.
      * @param string                    $error Error message.
+     * @param array<string,mixed>       $api_error_payload Raw API error payload if present.
      * @return array{success:bool,message:string,post_id:int,updated:bool,event:array<string,mixed>}
      */
-    private function store_failed_source_candidate( array $validated, $error ) {
+    private function store_failed_source_candidate( array $validated, $submitted_url, $error, array $api_error_payload = array() ) {
         $candidate = array(
-            'source_type'          => 'eventbrite',
-            'title'                => 'Unreadable Eventbrite source ' . $validated['event_id'],
-            'description'          => '',
-            'source_url'           => $validated['url'],
-            'eventbrite_event_id'  => $validated['event_id'],
-            'candidate_status'     => 'source_unreadable',
-            'collection_method'    => 'one_time_eventbrite_failed',
-            'fetch_method'         => 'failed',
-            'import_error'         => sanitize_text_field( $error ),
-            'event_data_verified'  => 'no',
+            'source_type'                         => 'eventbrite',
+            'title'                               => 'Unreadable Eventbrite source ' . $validated['event_id'],
+            'description'                         => '',
+            'submitted_url'                       => esc_url_raw( $submitted_url ),
+            'source_url'                          => $validated['url'],
+            'eventbrite_event_id'                 => $validated['event_id'],
+            'candidate_status'                    => 'source_unreadable',
+            'collection_method'                   => 'one_time_eventbrite_failed',
+            'fetch_method'                        => 'failed',
+            'import_error'                        => sanitize_text_field( $error ),
+            'api_error_payload'                   => $api_error_payload,
+            'event_data_verified'                 => 'no',
+            'exploratory_report_data_coverage'    => 'source_url,eventbrite_event_id,error_payload_if_available,no_verified_event_data',
         );
 
         $stored = $this->store->save_event_candidate( $candidate );
