@@ -22,6 +22,7 @@ final class GI_Admin {
      */
     public function register_hooks() {
         add_action( 'admin_menu', array( $this, 'register_menu' ) );
+        add_action( 'admin_bar_menu', array( $this, 'register_admin_bar' ), 90 );
         add_action( 'admin_post_gi_eventbrite_import_once', array( $this, 'handle_eventbrite_import_once' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
     }
@@ -38,6 +39,28 @@ final class GI_Admin {
             array( $this, 'render_page' ),
             'dashicons-download',
             58
+        );
+    }
+
+    /**
+     * Add Great Imports to the WordPress admin toolbar.
+     *
+     * @param WP_Admin_Bar $wp_admin_bar Admin toolbar instance.
+     */
+    public function register_admin_bar( $wp_admin_bar ) {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $wp_admin_bar->add_node(
+            array(
+                'id'    => 'great-imports',
+                'title' => __( 'Great Imports', 'great-imports' ),
+                'href'  => admin_url( 'admin.php?page=great-imports' ),
+                'meta'  => array(
+                    'title' => __( 'Great Imports', 'great-imports' ),
+                ),
+            )
         );
     }
 
