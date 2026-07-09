@@ -71,7 +71,7 @@ final class GI_Admin {
             array(
                 'page'       => 'great-imports',
                 'gi_status'  => $result['success'] ? 'success' : 'error',
-                'gi_message' => rawurlencode( $result['message'] ),
+                'gi_message' => $result['message'],
                 'gi_post_id' => absint( $result['post_id'] ),
             ),
             admin_url( 'admin.php' )
@@ -157,7 +157,7 @@ final class GI_Admin {
         }
 
         $status  = sanitize_key( wp_unslash( $_GET['gi_status'] ) );
-        $message = sanitize_text_field( rawurldecode( wp_unslash( $_GET['gi_message'] ) ) );
+        $message = sanitize_text_field( wp_unslash( $_GET['gi_message'] ) );
         $class   = 'success' === $status ? 'notice-success' : 'notice-error';
         ?>
         <div class="notice <?php echo esc_attr( $class ); ?> is-dismissible">
