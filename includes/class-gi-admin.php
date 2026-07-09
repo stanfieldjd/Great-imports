@@ -13,8 +13,12 @@ final class GI_Admin {
     /** @var GI_Eventbrite_Importer */
     private $importer;
 
-    public function __construct( GI_Eventbrite_Importer $importer ) {
-        $this->importer = $importer;
+    /** @var GI_Eventbrite_API_Client */
+    private $api_client;
+
+    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client ) {
+        $this->importer   = $importer;
+        $this->api_client = $api_client;
     }
 
     /**
@@ -24,6 +28,7 @@ final class GI_Admin {
         add_action( 'admin_menu', array( $this, 'register_menu' ) );
         add_action( 'admin_bar_menu', array( $this, 'register_admin_bar' ), 90 );
         add_action( 'admin_post_gi_eventbrite_import_once', array( $this, 'handle_eventbrite_import_once' ) );
+        add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
     }
 
@@ -78,6 +83,35 @@ final class GI_Admin {
     }
 
     /**
+     * Handle Eventbrite API settings save.
+     */
+    public function handle_eventbrite_save_settings() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to change Great Imports settings.', 'great-imports' ) );
+        }
+
+        check_admin_referer( 'gi_eventbrite_save_settings' );
+
+        $clear = ! empty( $_POST['gi_eventbrite_clear_token'] );
+        $token = isset( $_POST['gi_eventbrite_private_token'] ) ? wp_unslash( $_POST['gi_eventbrite_private_token'] ) : '';
+
+        if ( $clear ) {
+            $this->api_client->clear_private_token();
+            $message = __( 'Eventbrite private token cleared.', 'great-imports' );
+            $status  = 'success';
+        } elseif ( '' !== trim( (string) $token ) ) {
+            $this->api_client->save_private_token( $token );
+            $message = __( 'Eventbrite private token saved.', 'great-imports' );
+            $status  = 'success';
+        } else {
+            $message = __( 'No Eventbrite token changes were made.', 'great-imports' );
+            $status  = 'error';
+        }
+
+        $this->redirect_with_notice( $status, $message, 0 );
+    }
+
+    /**
      * Handle one-time Eventbrite import form submission.
      */
     public function handle_eventbrite_import_once() {
@@ -90,18 +124,11 @@ final class GI_Admin {
         $url    = isset( $_POST['gi_eventbrite_url'] ) ? wp_unslash( $_POST['gi_eventbrite_url'] ) : '';
         $result = $this->importer->import_once( $url );
 
-        $redirect = add_query_arg(
-            array(
-                'page'       => 'great-imports',
-                'gi_status'  => $result['success'] ? 'success' : 'error',
-                'gi_message' => $result['message'],
-                'gi_post_id' => absint( $result['post_id'] ),
-            ),
-            admin_url( 'admin.php' )
+        $this->redirect_with_notice(
+            $result['success'] ? 'success' : 'error',
+            $result['message'],
+            absint( $result['post_id'] )
         );
-
-        wp_safe_redirect( $redirect );
-        exit;
     }
 
     /**
@@ -121,8 +148,23 @@ final class GI_Admin {
             <?php $this->render_notice(); ?>
 
             <div class="gi-card">
+                <h2><?php esc_html_e( 'Eventbrite API Settings', 'great-imports' ); ?></h2>
+                <p><?php esc_html_e( 'Optional but recommended. Save the Eventbrite private token here so Great Imports can fetch verified API data from your WordPress server. The token is never displayed after saving.', 'great-imports' ); ?></p>
+                <p><strong><?php esc_html_e( 'Status:', 'great-imports' ); ?></strong> <?php echo esc_html( $this->api_client->has_private_token() ? __( 'Private token configured', 'great-imports' ) : __( 'Private token not configured', 'great-imports' ) ); ?></p>
+
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                    <?php wp_nonce_field( 'gi_eventbrite_save_settings' ); ?>
+                    <input type="hidden" name="action" value="gi_eventbrite_save_settings" />
+                    <label for="gi_eventbrite_private_token" class="gi-label"><?php esc_html_e( 'Eventbrite private token', 'great-imports' ); ?></label>
+                    <input type="password" class="regular-text gi-token-input" id="gi_eventbrite_private_token" name="gi_eventbrite_private_token" value="" autocomplete="off" placeholder="<?php echo esc_attr( $this->api_client->has_private_token() ? __( 'Configured — enter a new token to replace it', 'great-imports' ) : __( 'Paste private token', 'great-imports' ) ); ?>" />
+                    <label class="gi-inline-check"><input type="checkbox" name="gi_eventbrite_clear_token" value="1" /> <?php esc_html_e( 'Clear saved token', 'great-imports' ); ?></label>
+                    <?php submit_button( __( 'Save Eventbrite settings', 'great-imports' ), 'secondary', 'submit', false ); ?>
+                </form>
+            </div>
+
+            <div class="gi-card">
                 <h2><?php esc_html_e( 'One-time Eventbrite Import', 'great-imports' ); ?></h2>
-                <p><?php esc_html_e( 'Paste one Eventbrite event URL. Great Imports will collect public event data and create or update a review candidate.', 'great-imports' ); ?></p>
+                <p><?php esc_html_e( 'Paste one Eventbrite event URL. Great Imports will extract the event ID, try the Eventbrite API when a private token is configured, and fall back to public JSON-LD only if needed.', 'great-imports' ); ?></p>
 
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                     <?php wp_nonce_field( 'gi_eventbrite_import_once' ); ?>
@@ -142,8 +184,10 @@ final class GI_Admin {
                         <thead>
                             <tr>
                                 <th><?php esc_html_e( 'Title', 'great-imports' ); ?></th>
+                                <th><?php esc_html_e( 'Status', 'great-imports' ); ?></th>
                                 <th><?php esc_html_e( 'Start', 'great-imports' ); ?></th>
                                 <th><?php esc_html_e( 'Location', 'great-imports' ); ?></th>
+                                <th><?php esc_html_e( 'Method', 'great-imports' ); ?></th>
                                 <th><?php esc_html_e( 'Source', 'great-imports' ); ?></th>
                             </tr>
                         </thead>
@@ -152,8 +196,10 @@ final class GI_Admin {
                                 <?php $source_url = (string) get_post_meta( $candidate->ID, '_gi_source_url', true ); ?>
                                 <tr>
                                     <td><strong><?php echo esc_html( get_the_title( $candidate ) ); ?></strong></td>
+                                    <td><?php echo esc_html( (string) get_post_meta( $candidate->ID, '_gi_candidate_status', true ) ); ?></td>
                                     <td><?php echo esc_html( (string) get_post_meta( $candidate->ID, '_gi_start_date', true ) ); ?></td>
                                     <td><?php echo esc_html( (string) get_post_meta( $candidate->ID, '_gi_location_name', true ) ); ?></td>
+                                    <td><?php echo esc_html( (string) get_post_meta( $candidate->ID, '_gi_fetch_method', true ) ); ?></td>
                                     <td>
                                         <?php if ( $source_url ) : ?>
                                             <a href="<?php echo esc_url( $source_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open source', 'great-imports' ); ?></a>
@@ -169,6 +215,28 @@ final class GI_Admin {
             </div>
         </div>
         <?php
+    }
+
+    /**
+     * Redirect to admin page with a notice.
+     *
+     * @param string $status Notice status.
+     * @param string $message Notice message.
+     * @param int    $post_id Candidate post ID.
+     */
+    private function redirect_with_notice( $status, $message, $post_id = 0 ) {
+        $redirect = add_query_arg(
+            array(
+                'page'       => 'great-imports',
+                'gi_status'  => sanitize_key( $status ),
+                'gi_message' => sanitize_text_field( $message ),
+                'gi_post_id' => absint( $post_id ),
+            ),
+            admin_url( 'admin.php' )
+        );
+
+        wp_safe_redirect( $redirect );
+        exit;
     }
 
     /**
