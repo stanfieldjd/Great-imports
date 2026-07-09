@@ -19,10 +19,14 @@ final class GI_Admin {
     /** @var GI_Exploratory_Report */
     private $exploratory_report;
 
-    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client, GI_Exploratory_Report $exploratory_report ) {
+    /** @var GI_Import_Preview_Builder */
+    private $preview_builder;
+
+    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client, GI_Exploratory_Report $exploratory_report, GI_Import_Preview_Builder $preview_builder ) {
         $this->importer           = $importer;
         $this->api_client         = $api_client;
         $this->exploratory_report = $exploratory_report;
+        $this->preview_builder    = $preview_builder;
     }
 
     /**
@@ -37,9 +41,6 @@ final class GI_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
     }
 
-    /**
-     * Add the top-level Great Imports menu.
-     */
     public function register_menu() {
         add_menu_page(
             __( 'Great Imports', 'great-imports' ),
@@ -52,11 +53,6 @@ final class GI_Admin {
         );
     }
 
-    /**
-     * Add Great Imports to the WordPress admin toolbar.
-     *
-     * @param WP_Admin_Bar $wp_admin_bar Admin toolbar instance.
-     */
     public function register_admin_bar( $wp_admin_bar ) {
         if ( ! current_user_can( 'manage_options' ) ) {
             return;
@@ -74,11 +70,6 @@ final class GI_Admin {
         );
     }
 
-    /**
-     * Enqueue admin CSS only on this page.
-     *
-     * @param string $hook Current admin hook.
-     */
     public function enqueue_assets( $hook ) {
         if ( 'toplevel_page_great-imports' !== $hook ) {
             return;
@@ -87,9 +78,6 @@ final class GI_Admin {
         wp_enqueue_style( 'great-imports-admin', GREAT_IMPORTS_URL . 'assets/css/admin.css', array(), GREAT_IMPORTS_VERSION );
     }
 
-    /**
-     * Handle Eventbrite API settings save.
-     */
     public function handle_eventbrite_save_settings() {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to change Great Imports settings.', 'great-imports' ) );
@@ -116,22 +104,15 @@ final class GI_Admin {
         $this->redirect_with_notice( $status, $message, 0 );
     }
 
-    /**
-     * Handle exploratory report download.
-     */
     public function handle_download_exploratory_report() {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to download Great Imports reports.', 'great-imports' ) );
         }
 
         check_admin_referer( 'gi_download_exploratory_report' );
-
         $this->exploratory_report->download();
     }
 
-    /**
-     * Handle one-time Eventbrite import form submission.
-     */
     public function handle_eventbrite_import_once() {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to import events.', 'great-imports' ) );
@@ -149,9 +130,6 @@ final class GI_Admin {
         );
     }
 
-    /**
-     * Render admin page.
-     */
     public function render_page() {
         if ( ! current_user_can( 'manage_options' ) ) {
             return;
@@ -183,20 +161,21 @@ final class GI_Admin {
             <div class="gi-card">
                 <h2><?php esc_html_e( 'One-time Eventbrite Import', 'great-imports' ); ?></h2>
                 <p><?php esc_html_e( 'Paste one Eventbrite event URL. Great Imports will extract the event ID, try the Eventbrite API when a private token is configured, and fall back to public JSON-LD only if needed.', 'great-imports' ); ?></p>
+                <p><strong><?php esc_html_e( 'Current stage:', 'great-imports' ); ?></strong> <?php esc_html_e( 'Evidence collection and import preview only. This screen does not create Events Manager events yet.', 'great-imports' ); ?></p>
 
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                     <?php wp_nonce_field( 'gi_eventbrite_import_once' ); ?>
                     <input type="hidden" name="action" value="gi_eventbrite_import_once" />
                     <label for="gi_eventbrite_url" class="gi-label"><?php esc_html_e( 'Eventbrite URL', 'great-imports' ); ?></label>
                     <input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789" required />
-                    <?php submit_button( __( 'Import once', 'great-imports' ), 'primary', 'submit', false ); ?>
+                    <?php submit_button( __( 'Collect evidence / refresh preview', 'great-imports' ), 'primary', 'submit', false ); ?>
                 </form>
             </div>
 
             <div class="gi-card">
                 <h2><?php esc_html_e( 'Exploratory Report', 'great-imports' ); ?></h2>
-                <p><?php esc_html_e( 'Download a sanitized JSON report showing plugin state, Events Manager detection, Eventbrite token status, candidate summaries, source URLs, Eventbrite IDs, fetch methods, status codes, errors, and all tracked Great Imports candidate metadata.', 'great-imports' ); ?></p>
-                <p><?php esc_html_e( 'Secret values are not exported.', 'great-imports' ); ?></p>
+                <p><?php esc_html_e( 'Download a sanitized JSON report showing plugin state, Events Manager detection, Eventbrite token status, candidate summaries, source URLs, Eventbrite IDs, fetch methods, status codes, errors, and tracked Great Imports candidate metadata.', 'great-imports' ); ?></p>
+                <p><?php esc_html_e( 'Secret values and cookies are not exported.', 'great-imports' ); ?></p>
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                     <?php wp_nonce_field( 'gi_download_exploratory_report' ); ?>
                     <input type="hidden" name="action" value="gi_download_exploratory_report" />
@@ -209,7 +188,7 @@ final class GI_Admin {
                 <?php if ( empty( $recent_candidates ) ) : ?>
                     <p><?php esc_html_e( 'No candidates have been collected yet.', 'great-imports' ); ?></p>
                 <?php else : ?>
-                    <table class="widefat striped">
+                    <table class="widefat striped gi-candidate-table">
                         <thead>
                             <tr>
                                 <th><?php esc_html_e( 'Title', 'great-imports' ); ?></th>
@@ -217,12 +196,15 @@ final class GI_Admin {
                                 <th><?php esc_html_e( 'Start', 'great-imports' ); ?></th>
                                 <th><?php esc_html_e( 'Location', 'great-imports' ); ?></th>
                                 <th><?php esc_html_e( 'Method', 'great-imports' ); ?></th>
-                                <th><?php esc_html_e( 'Source', 'great-imports' ); ?></th>
+                                <th><?php esc_html_e( 'Internal source', 'great-imports' ); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ( $recent_candidates as $candidate ) : ?>
-                                <?php $source_url = (string) get_post_meta( $candidate->ID, '_gi_source_url', true ); ?>
+                                <?php
+                                $source_url = (string) get_post_meta( $candidate->ID, '_gi_source_url', true );
+                                $preview    = $this->preview_builder->build_for_candidate( $candidate );
+                                ?>
                                 <tr>
                                     <td><strong><?php echo esc_html( get_the_title( $candidate ) ); ?></strong></td>
                                     <td><?php echo esc_html( (string) get_post_meta( $candidate->ID, '_gi_candidate_status', true ) ); ?></td>
@@ -233,8 +215,16 @@ final class GI_Admin {
                                         <?php if ( $source_url ) : ?>
                                             <a href="<?php echo esc_url( $source_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open source', 'great-imports' ); ?></a>
                                         <?php else : ?>
-                                            <?php esc_html_e( 'Eventbrite', 'great-imports' ); ?>
+                                            <?php esc_html_e( 'Source stored internally', 'great-imports' ); ?>
                                         <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <tr class="gi-preview-row">
+                                    <td colspan="6">
+                                        <details class="gi-preview">
+                                            <summary><?php esc_html_e( 'Import preview / dry run', 'great-imports' ); ?></summary>
+                                            <?php $this->render_import_preview( $preview ); ?>
+                                        </details>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -246,13 +236,153 @@ final class GI_Admin {
         <?php
     }
 
-    /**
-     * Redirect to admin page with a notice.
-     *
-     * @param string $status Notice status.
-     * @param string $message Notice message.
-     * @param int    $post_id Candidate post ID.
-     */
+    private function render_import_preview( array $preview ) {
+        ?>
+        <div class="gi-preview-grid">
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Events Manager public fields', 'great-imports' ); ?></h3>
+                <?php $this->render_event_fields( $preview ); ?>
+            </section>
+
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Date, time, and timeslot handling', 'great-imports' ); ?></h3>
+                <?php $this->render_time_handling( isset( $preview['time_handling'] ) && is_array( $preview['time_handling'] ) ? $preview['time_handling'] : array() ); ?>
+            </section>
+
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Events Manager location/address fields', 'great-imports' ); ?></h3>
+                <?php $this->render_location_fields( isset( $preview['location_fields'] ) && is_array( $preview['location_fields'] ) ? $preview['location_fields'] : array() ); ?>
+            </section>
+
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Image handling', 'great-imports' ); ?></h3>
+                <?php $this->render_images( isset( $preview['images'] ) && is_array( $preview['images'] ) ? $preview['images'] : array() ); ?>
+            </section>
+
+            <section class="gi-preview-section gi-preview-description">
+                <h3><?php esc_html_e( 'Assembled public description', 'great-imports' ); ?></h3>
+                <div class="gi-description-preview">
+                    <?php echo wp_kses( isset( $preview['description_html'] ) ? (string) $preview['description_html'] : '', $this->preview_allowed_html() ); ?>
+                </div>
+            </section>
+
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Internal-only source tracking', 'great-imports' ); ?></h3>
+                <?php $this->render_key_value_list( isset( $preview['internal_tracking'] ) && is_array( $preview['internal_tracking'] ) ? $preview['internal_tracking'] : array() ); ?>
+            </section>
+
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Excluded from public import', 'great-imports' ); ?></h3>
+                <?php $this->render_simple_list( isset( $preview['excluded_public_data'] ) && is_array( $preview['excluded_public_data'] ) ? $preview['excluded_public_data'] : array() ); ?>
+            </section>
+
+            <section class="gi-preview-section">
+                <h3><?php esc_html_e( 'Stage / room duplication rule', 'great-imports' ); ?></h3>
+                <p><?php echo esc_html( isset( $preview['stage_handling']['note'] ) ? (string) $preview['stage_handling']['note'] : '' ); ?></p>
+            </section>
+        </div>
+        <?php
+    }
+
+    private function render_event_fields( array $preview ) {
+        $fields = isset( $preview['public_event_fields'] ) && is_array( $preview['public_event_fields'] ) ? $preview['public_event_fields'] : array();
+        $rows   = array(
+            __( 'Title', 'great-imports' )    => isset( $fields['title'] ) ? $fields['title'] : '',
+            __( 'Start', 'great-imports' )    => isset( $fields['start']['label'] ) ? $fields['start']['label'] : '',
+            __( 'End', 'great-imports' )      => isset( $fields['end']['label'] ) ? $fields['end']['label'] : '',
+            __( 'Timezone', 'great-imports' ) => isset( $fields['timezone'] ) ? $fields['timezone'] : '',
+            __( 'Status', 'great-imports' )   => isset( $fields['status'] ) ? $fields['status'] : '',
+        );
+
+        $this->render_key_value_list( $rows );
+    }
+
+    private function render_time_handling( array $time ) {
+        $rows = array(
+            __( 'Overall event window', 'great-imports' )              => isset( $time['overall_window'] ) ? $time['overall_window'] : '',
+            __( 'Set times / performance schedule', 'great-imports' )  => ! empty( $time['set_times'] ) ? __( 'Source-backed set times found', 'great-imports' ) : __( 'None found', 'great-imports' ),
+            __( 'Events Manager timeslots', 'great-imports' )          => ! empty( $time['em_timeslots'] ) ? __( 'Review required before use', 'great-imports' ) : __( 'Not used for this candidate', 'great-imports' ),
+        );
+        $this->render_key_value_list( $rows );
+
+        if ( ! empty( $time['note'] ) ) {
+            echo '<p class="description">' . esc_html( (string) $time['note'] ) . '</p>';
+        }
+    }
+
+    private function render_location_fields( array $fields ) {
+        $rows = array(
+            __( 'Location name', 'great-imports' ) => isset( $fields['location_name'] ) ? $fields['location_name'] : '',
+            __( 'Address', 'great-imports' )       => isset( $fields['location_address'] ) ? $fields['location_address'] : '',
+            __( 'Address 2', 'great-imports' )     => isset( $fields['location_address2'] ) ? $fields['location_address2'] : '',
+            __( 'City', 'great-imports' )          => isset( $fields['location_town'] ) ? $fields['location_town'] : '',
+            __( 'State', 'great-imports' )         => isset( $fields['location_state'] ) ? $fields['location_state'] : '',
+            __( 'ZIP', 'great-imports' )           => isset( $fields['location_postcode'] ) ? $fields['location_postcode'] : '',
+            __( 'Country', 'great-imports' )       => isset( $fields['location_country'] ) ? $fields['location_country'] : '',
+            __( 'Stage / room', 'great-imports' )  => isset( $fields['stage_room'] ) && '' !== $fields['stage_room'] ? $fields['stage_room'] : __( 'None found', 'great-imports' ),
+        );
+        $this->render_key_value_list( $rows );
+
+        if ( ! empty( $fields['handoff_note'] ) ) {
+            echo '<p class="description">' . esc_html( (string) $fields['handoff_note'] ) . '</p>';
+        }
+    }
+
+    private function render_images( array $images ) {
+        $url = isset( $images['primary_image_url'] ) ? esc_url( (string) $images['primary_image_url'] ) : '';
+
+        if ( '' !== $url ) {
+            echo '<p><img class="gi-preview-image" src="' . esc_url( $url ) . '" alt="" /></p>';
+            echo '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Open image source', 'great-imports' ) . '</a></p>';
+        } else {
+            echo '<p>' . esc_html__( 'No primary event image found.', 'great-imports' ) . '</p>';
+        }
+
+        if ( ! empty( $images['planned_action'] ) ) {
+            echo '<p class="description">' . esc_html( (string) $images['planned_action'] ) . '</p>';
+        }
+    }
+
+    private function render_key_value_list( array $rows ) {
+        echo '<table class="widefat gi-kv"><tbody>';
+        foreach ( $rows as $label => $value ) {
+            if ( is_array( $value ) || is_object( $value ) ) {
+                $value = '';
+            }
+            echo '<tr><th>' . esc_html( (string) $label ) . '</th><td>' . esc_html( (string) $value ) . '</td></tr>';
+        }
+        echo '</tbody></table>';
+    }
+
+    private function render_simple_list( array $items ) {
+        if ( empty( $items ) ) {
+            echo '<p>' . esc_html__( 'None.', 'great-imports' ) . '</p>';
+            return;
+        }
+
+        echo '<ul class="gi-simple-list">';
+        foreach ( $items as $item ) {
+            if ( is_array( $item ) || is_object( $item ) ) {
+                continue;
+            }
+            echo '<li>' . esc_html( (string) $item ) . '</li>';
+        }
+        echo '</ul>';
+    }
+
+    private function preview_allowed_html() {
+        $allowed = wp_kses_allowed_html( 'post' );
+        $allowed['details'] = array(
+            'open'  => true,
+            'class' => true,
+        );
+        $allowed['summary'] = array(
+            'class' => true,
+        );
+
+        return $allowed;
+    }
+
     private function redirect_with_notice( $status, $message, $post_id = 0 ) {
         $redirect = add_query_arg(
             array(
@@ -268,9 +398,6 @@ final class GI_Admin {
         exit;
     }
 
-    /**
-     * Render status notice after import attempt.
-     */
     private function render_notice() {
         if ( empty( $_GET['gi_status'] ) || empty( $_GET['gi_message'] ) ) {
             return;
