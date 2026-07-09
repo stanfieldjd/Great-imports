@@ -1,0 +1,398 @@
+<?php
+/**
+ * Builds review-only import previews before any Events Manager save.
+ *
+ * @package GreatImports
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+final class GI_Import_Preview_Builder {
+    /**
+     * Build a non-saving import preview for a candidate.
+     *
+     * @param WP_Post $candidate Candidate post.
+     * @return array<string,mixed>
+     */
+    public function build_for_candidate( $candidate ) {
+        $post_id = isset( $candidate->ID ) ? (int) $candidate->ID : 0;
+        $bundle  = $this->evidence_bundle_for_candidate( $post_id );
+
+        $start = $this->split_local_datetime( $this->meta( $post_id, 'start_date' ) );
+        $end   = $this->split_local_datetime( $this->meta( $post_id, 'end_date' ) );
+
+        $ticket_classes = $this->ticket_classes_from_bundle( $bundle );
+        $faqs           = $this->faqs_from_bundle( $bundle );
+        $description    = $this->assemble_description_html( $candidate, $post_id, $start, $end, $ticket_classes, $faqs );
+        $stage_room     = $this->meta( $post_id, 'stage_room' );
+
+        return array(
+            'public_event_fields' => array(
+                'title'     => get_the_title( $candidate ),
+                'start'     => $start,
+                'end'       => $end,
+                'timezone'  => $this->meta( $post_id, 'timezone' ),
+                'status'    => __( 'Preview only — no Events Manager event will be saved from this screen.', 'great-imports' ),
+            ),
+            'time_handling'       => array(
+                'overall_window' => $this->overall_window_label( $start, $end ),
+                'set_times'      => array(),
+                'em_timeslots'   => array(),
+                'note'           => __( 'Overall event time is available. No separate source-backed set times or Events Manager timeslots have been extracted for this candidate.', 'great-imports' ),
+            ),
+            'location_fields'     => array(
+                'location_name'     => $this->meta( $post_id, 'location_name' ),
+                'location_address'  => $this->meta( $post_id, 'location_address_1' ),
+                'location_address2' => $this->meta( $post_id, 'location_address_2' ),
+                'location_town'     => $this->meta( $post_id, 'location_city' ),
+                'location_state'    => $this->meta( $post_id, 'location_state' ),
+                'location_postcode' => $this->meta( $post_id, 'location_postal_code' ),
+                'location_country'  => $this->meta( $post_id, 'location_country' ),
+                'stage_room'        => $stage_room,
+                'handoff_note'      => __( 'Great Imports fills address fields only. Events Manager handles save/update/location ID/map behavior.', 'great-imports' ),
+            ),
+            'images'              => array(
+                'primary_image_url' => $this->meta( $post_id, 'image_url' ),
+                'planned_action'    => __( 'Actual event image should be downloaded into the WordPress Media Library and assigned as the featured image when import is later approved.', 'great-imports' ),
+                'excluded'          => array(
+                    __( 'tracking pixels', 'great-imports' ),
+                    __( 'UI icons', 'great-imports' ),
+                    __( 'CSS/JS assets', 'great-imports' ),
+                    __( 'unrelated page graphics', 'great-imports' ),
+                ),
+            ),
+            'description_html'    => $description,
+            'ticketing'           => array(
+                'ticket_url'     => $this->meta( $post_id, 'ticket_url' ),
+                'price'          => $this->meta( $post_id, 'price' ),
+                'currency'       => $this->meta( $post_id, 'price_currency' ),
+                'ticket_classes' => $ticket_classes,
+                'public_rule'    => __( 'Eventbrite may appear publicly only as the purchase-ticket URL.', 'great-imports' ),
+            ),
+            'stage_handling'      => array(
+                'stage_room' => $stage_room,
+                'note'       => __( 'Multiple stages/rooms at the same address are valid evidence and are not a rejection reason. Stage/room evidence belongs in details unless review chooses otherwise.', 'great-imports' ),
+            ),
+            'related_events'      => array(
+                'items' => array(),
+                'note'  => __( 'Related-event cards are only included when captured as structured event-card evidence. No structured related-event cards are available for this candidate yet.', 'great-imports' ),
+            ),
+            'internal_tracking'   => array(
+                'source_type'             => $this->meta( $post_id, 'source_type' ),
+                'source_url'              => $this->meta( $post_id, 'source_url' ),
+                'submitted_url'           => $this->meta( $post_id, 'submitted_url' ),
+                'eventbrite_event_id'     => $this->meta( $post_id, 'eventbrite_event_id' ),
+                'evidence_bundle_id'      => $this->meta( $post_id, 'evidence_bundle_id' ),
+                'evidence_capture_run_id' => $this->meta( $post_id, 'evidence_capture_run_id' ),
+                'fetch_method'            => $this->meta( $post_id, 'fetch_method' ),
+            ),
+            'excluded_public_data' => array(
+                __( 'latitude', 'great-imports' ),
+                __( 'longitude', 'great-imports' ),
+                __( 'geocoding', 'great-imports' ),
+                __( 'manual Events Manager location ID assignment', 'great-imports' ),
+                __( 'raw scripts', 'great-imports' ),
+                __( 'raw cookies/headers', 'great-imports' ),
+                __( 'Eventbrite source attribution except ticket purchase URL', 'great-imports' ),
+                __( 'Eventbrite API IDs in public content', 'great-imports' ),
+            ),
+        );
+    }
+
+    private function assemble_description_html( $candidate, $post_id, array $start, array $end, array $ticket_classes, array $faqs ) {
+        $html     = '';
+        $overview = trim( (string) $candidate->post_content );
+
+        if ( '' !== $overview ) {
+            $html .= '<h2>' . esc_html__( 'Overview', 'great-imports' ) . '</h2>';
+            $html .= wp_kses_post( $overview );
+        }
+
+        $good_to_know = array();
+        $duration     = $this->duration_label( $start, $end );
+        if ( '' !== $duration ) {
+            $good_to_know[] = sprintf( __( 'Duration: %s', 'great-imports' ), $duration );
+        }
+
+        if ( '' !== $this->meta( $post_id, 'location_name' ) ) {
+            $good_to_know[] = __( 'In person', 'great-imports' );
+        }
+
+        if ( ! empty( $good_to_know ) ) {
+            $html .= '<h2>' . esc_html__( 'Good to know', 'great-imports' ) . '</h2><ul>';
+            foreach ( $good_to_know as $item ) {
+                $html .= '<li>' . esc_html( $item ) . '</li>';
+            }
+            $html .= '</ul>';
+        }
+
+        $html .= $this->ticket_section_html( $post_id, $ticket_classes );
+        $html .= $this->organizer_section_html( $post_id );
+        $html .= $this->venue_section_html( $post_id );
+        $html .= $this->faq_section_html( $faqs );
+
+        return $html;
+    }
+
+    private function ticket_section_html( $post_id, array $ticket_classes ) {
+        $ticket_url = $this->meta( $post_id, 'ticket_url' );
+        $price      = $this->meta( $post_id, 'price' );
+        $currency   = $this->meta( $post_id, 'price_currency' );
+
+        if ( '' === $ticket_url && '' === $price && empty( $ticket_classes ) ) {
+            return '';
+        }
+
+        $html = '<h2>' . esc_html__( 'Tickets', 'great-imports' ) . '</h2>';
+
+        if ( ! empty( $ticket_classes ) ) {
+            $html .= '<ul>';
+            foreach ( $ticket_classes as $ticket_class ) {
+                $label = isset( $ticket_class['name'] ) && '' !== $ticket_class['name'] ? $ticket_class['name'] : __( 'Ticket', 'great-imports' );
+                $cost  = isset( $ticket_class['cost'] ) ? $ticket_class['cost'] : '';
+                $html .= '<li>' . esc_html( trim( $label . ( '' !== $cost ? ' — ' . $cost : '' ) ) ) . '</li>';
+            }
+            $html .= '</ul>';
+        } elseif ( '' !== $price ) {
+            $html .= '<p>' . esc_html( trim( $price . ' ' . $currency ) ) . '</p>';
+        }
+
+        if ( '' !== $ticket_url ) {
+            $html .= '<p><a href="' . esc_url( $ticket_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Purchase tickets', 'great-imports' ) . '</a></p>';
+        }
+
+        return $html;
+    }
+
+    private function organizer_section_html( $post_id ) {
+        $organizer = $this->meta( $post_id, 'organizer_name' );
+
+        if ( '' === $organizer ) {
+            return '';
+        }
+
+        return '<h2>' . esc_html__( 'Organizer', 'great-imports' ) . '</h2><p>' . esc_html( $organizer ) . '</p>';
+    }
+
+    private function venue_section_html( $post_id ) {
+        $name    = $this->meta( $post_id, 'location_name' );
+        $address = array_filter(
+            array(
+                $this->meta( $post_id, 'location_address_1' ),
+                $this->meta( $post_id, 'location_address_2' ),
+                trim( $this->meta( $post_id, 'location_city' ) . ', ' . $this->meta( $post_id, 'location_state' ) . ' ' . $this->meta( $post_id, 'location_postal_code' ) ),
+                $this->meta( $post_id, 'location_country' ),
+            )
+        );
+        $stage   = $this->meta( $post_id, 'stage_room' );
+
+        if ( '' === $name && empty( $address ) && '' === $stage ) {
+            return '';
+        }
+
+        $html = '<h2>' . esc_html__( 'Venue', 'great-imports' ) . '</h2>';
+
+        if ( '' !== $name ) {
+            $html .= '<p><strong>' . esc_html( $name ) . '</strong></p>';
+        }
+
+        if ( '' !== $stage ) {
+            $html .= '<p>' . esc_html__( 'Stage / Room:', 'great-imports' ) . ' ' . esc_html( $stage ) . '</p>';
+        }
+
+        if ( ! empty( $address ) ) {
+            $html .= '<p>' . implode( '<br>', array_map( 'esc_html', $address ) ) . '</p>';
+        }
+
+        return $html;
+    }
+
+    private function faq_section_html( array $faqs ) {
+        if ( empty( $faqs ) ) {
+            return '';
+        }
+
+        $html = '<h2>' . esc_html__( 'Frequently asked questions', 'great-imports' ) . '</h2>';
+
+        foreach ( $faqs as $faq ) {
+            $question = isset( $faq['question'] ) ? $faq['question'] : '';
+            $answer   = isset( $faq['answer'] ) ? $faq['answer'] : '';
+
+            if ( '' === $question || '' === $answer ) {
+                continue;
+            }
+
+            $html .= '<details><summary>' . esc_html( $question ) . '</summary><p>' . esc_html( $answer ) . '</p></details>';
+        }
+
+        return $html;
+    }
+
+    private function ticket_classes_from_bundle( array $bundle ) {
+        $ticket_classes = array();
+        $items          = isset( $bundle['items'] ) && is_array( $bundle['items'] ) ? $bundle['items'] : array();
+        $payload        = isset( $items['eventbrite_api_ticket_classes']['payload'] ) && is_array( $items['eventbrite_api_ticket_classes']['payload'] ) ? $items['eventbrite_api_ticket_classes']['payload'] : array();
+        $classes        = isset( $payload['ticket_classes'] ) && is_array( $payload['ticket_classes'] ) ? $payload['ticket_classes'] : array();
+
+        foreach ( $classes as $ticket_class ) {
+            if ( ! is_array( $ticket_class ) ) {
+                continue;
+            }
+
+            $name = isset( $ticket_class['display_name'] ) ? sanitize_text_field( (string) $ticket_class['display_name'] ) : '';
+            if ( '' === $name && isset( $ticket_class['name'] ) ) {
+                $name = sanitize_text_field( (string) $ticket_class['name'] );
+            }
+
+            $cost = '';
+            if ( isset( $ticket_class['cost']['display'] ) ) {
+                $cost = sanitize_text_field( (string) $ticket_class['cost']['display'] );
+            }
+
+            $ticket_classes[] = array(
+                'name' => $name,
+                'cost' => $cost,
+            );
+        }
+
+        return $ticket_classes;
+    }
+
+    private function faqs_from_bundle( array $bundle ) {
+        $faqs   = array();
+        $items  = isset( $bundle['items'] ) && is_array( $bundle['items'] ) ? $bundle['items'] : array();
+        $blocks = isset( $items['public_event_page_html_extracted_evidence']['json_ld_blocks'] ) && is_array( $items['public_event_page_html_extracted_evidence']['json_ld_blocks'] ) ? $items['public_event_page_html_extracted_evidence']['json_ld_blocks'] : array();
+
+        foreach ( $blocks as $block ) {
+            if ( ! is_array( $block ) || empty( $block['decoded'] ) || ! is_array( $block['decoded'] ) ) {
+                continue;
+            }
+            $this->collect_faqs_from_jsonld_node( $block['decoded'], $faqs );
+        }
+
+        return $faqs;
+    }
+
+    private function collect_faqs_from_jsonld_node( $node, array &$faqs ) {
+        if ( ! is_array( $node ) ) {
+            return;
+        }
+
+        $type = isset( $node['@type'] ) ? $node['@type'] : '';
+        if ( is_array( $type ) ) {
+            $type = implode( ',', array_map( 'strval', $type ) );
+        }
+
+        if ( false !== stripos( (string) $type, 'FAQPage' ) && ! empty( $node['mainEntity'] ) && is_array( $node['mainEntity'] ) ) {
+            foreach ( $node['mainEntity'] as $question_node ) {
+                if ( ! is_array( $question_node ) ) {
+                    continue;
+                }
+
+                $question = isset( $question_node['name'] ) ? sanitize_text_field( (string) $question_node['name'] ) : '';
+                $answer   = '';
+
+                if ( isset( $question_node['acceptedAnswer'] ) && is_array( $question_node['acceptedAnswer'] ) ) {
+                    if ( isset( $question_node['acceptedAnswer']['text'] ) ) {
+                        $answer = sanitize_text_field( wp_strip_all_tags( (string) $question_node['acceptedAnswer']['text'] ) );
+                    }
+                }
+
+                if ( '' !== $question && '' !== $answer ) {
+                    $faqs[] = array(
+                        'question' => $question,
+                        'answer'   => $answer,
+                    );
+                }
+            }
+        }
+
+        foreach ( $node as $child ) {
+            if ( is_array( $child ) ) {
+                $this->collect_faqs_from_jsonld_node( $child, $faqs );
+            }
+        }
+    }
+
+    private function evidence_bundle_for_candidate( $candidate_id ) {
+        $evidence_id = absint( get_post_meta( $candidate_id, '_gi_evidence_bundle_id', true ) );
+        if ( ! $evidence_id ) {
+            return array();
+        }
+
+        $bundle = get_post_meta( $evidence_id, '_gi_evidence_bundle', true );
+        return is_array( $bundle ) ? $bundle : array();
+    }
+
+    private function meta( $post_id, $key ) {
+        $value = get_post_meta( $post_id, '_gi_' . sanitize_key( $key ), true );
+
+        if ( is_array( $value ) || is_object( $value ) ) {
+            return '';
+        }
+
+        return sanitize_text_field( (string) $value );
+    }
+
+    private function split_local_datetime( $datetime ) {
+        $datetime  = trim( (string) $datetime );
+        $timestamp = '' !== $datetime ? strtotime( $datetime ) : false;
+
+        if ( false === $timestamp ) {
+            return array(
+                'raw'       => $datetime,
+                'date'      => '',
+                'time'      => '',
+                'label'     => $datetime,
+                'timestamp' => null,
+            );
+        }
+
+        return array(
+            'raw'       => $datetime,
+            'date'      => date_i18n( 'Y-m-d', $timestamp ),
+            'time'      => date_i18n( 'g:i A', $timestamp ),
+            'label'     => date_i18n( 'l, F j, Y g:i A', $timestamp ),
+            'timestamp' => $timestamp,
+        );
+    }
+
+    private function duration_label( array $start, array $end ) {
+        if ( empty( $start['timestamp'] ) || empty( $end['timestamp'] ) ) {
+            return '';
+        }
+
+        $seconds = max( 0, (int) $end['timestamp'] - (int) $start['timestamp'] );
+        if ( ! $seconds ) {
+            return '';
+        }
+
+        $hours   = floor( $seconds / HOUR_IN_SECONDS );
+        $minutes = floor( ( $seconds % HOUR_IN_SECONDS ) / MINUTE_IN_SECONDS );
+        $parts   = array();
+
+        if ( $hours ) {
+            $parts[] = sprintf( _n( '%d hour', '%d hours', $hours, 'great-imports' ), $hours );
+        }
+
+        if ( $minutes ) {
+            $parts[] = sprintf( _n( '%d minute', '%d minutes', $minutes, 'great-imports' ), $minutes );
+        }
+
+        return implode( ' ', $parts );
+    }
+
+    private function overall_window_label( array $start, array $end ) {
+        if ( empty( $start['label'] ) && empty( $end['label'] ) ) {
+            return '';
+        }
+
+        if ( ! empty( $start['date'] ) && $start['date'] === $end['date'] ) {
+            return trim( $start['label'] . ' - ' . ( isset( $end['time'] ) ? $end['time'] : '' ) );
+        }
+
+        return trim( ( isset( $start['label'] ) ? $start['label'] : '' ) . ' - ' . ( isset( $end['label'] ) ? $end['label'] : '' ) );
+    }
+}
