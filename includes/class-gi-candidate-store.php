@@ -83,15 +83,25 @@ final class GI_Candidate_Store {
     }
 
     /**
-     * Build a duplicate fingerprint from title/date/location/source.
+     * Build a duplicate fingerprint from event identity and physical/stage evidence.
+     *
+     * Same address with multiple stages is valid evidence, not a rejection reason. Stage/room
+     * evidence can separate otherwise similar candidates without treating the address as invalid.
      *
      * @param array<string,mixed> $candidate Candidate data.
      */
     private function fingerprint( array $candidate ) {
         $parts = array(
+            isset( $candidate['eventbrite_event_id'] ) ? $candidate['eventbrite_event_id'] : '',
             isset( $candidate['title'] ) ? $candidate['title'] : '',
             isset( $candidate['start_date'] ) ? $candidate['start_date'] : '',
+            isset( $candidate['end_date'] ) ? $candidate['end_date'] : '',
             isset( $candidate['location_name'] ) ? $candidate['location_name'] : '',
+            isset( $candidate['location_address_1'] ) ? $candidate['location_address_1'] : '',
+            isset( $candidate['location_city'] ) ? $candidate['location_city'] : '',
+            isset( $candidate['location_state'] ) ? $candidate['location_state'] : '',
+            isset( $candidate['location_postal_code'] ) ? $candidate['location_postal_code'] : '',
+            isset( $candidate['stage_room'] ) ? $candidate['stage_room'] : '',
             isset( $candidate['source_url'] ) ? $candidate['source_url'] : '',
         );
 
