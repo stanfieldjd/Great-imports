@@ -109,7 +109,7 @@ final class GI_HTTP_Evidence_Client {
     }
 
     /**
-     * Redact secret-like headers.
+     * Redact secret, cookie, and account-adjacent headers before reports can expose them.
      *
      * @param array<string,mixed> $headers Headers.
      * @return array<string,mixed>
@@ -119,7 +119,7 @@ final class GI_HTTP_Evidence_Client {
 
         foreach ( $headers as $key => $value ) {
             $lower = strtolower( (string) $key );
-            if ( false !== strpos( $lower, 'authorization' ) || false !== strpos( $lower, 'token' ) || false !== strpos( $lower, 'secret' ) || false !== strpos( $lower, 'key' ) ) {
+            if ( $this->should_redact_header( $lower ) ) {
                 $clean[ $key ] = '[redacted]';
                 continue;
             }
@@ -132,6 +132,33 @@ final class GI_HTTP_Evidence_Client {
         }
 
         return $clean;
+    }
+
+    /**
+     * Decide whether a header should be redacted.
+     *
+     * @param string $lower Lowercase header name.
+     */
+    private function should_redact_header( $lower ) {
+        $redacted_fragments = array(
+            'authorization',
+            'token',
+            'secret',
+            'key',
+            'cookie',
+            'set-cookie',
+            'rate-limit',
+            'ratelimit',
+            'x-eb-',
+        );
+
+        foreach ( $redacted_fragments as $fragment ) {
+            if ( false !== strpos( $lower, $fragment ) ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
