@@ -123,6 +123,89 @@ final class GI_Eventbrite_API_Client {
     }
 
     /**
+     * Fetch additional raw Eventbrite evidence for an exploratory report.
+     *
+     * @param string              $event_id Eventbrite event ID.
+     * @param array<string,mixed> $event_payload Already-fetched event payload.
+     * @return array<string,array<string,mixed>>
+     */
+    public function get_related_exploratory_payloads( $event_id, array $event_payload ) {
+        $event_id = preg_replace( '/[^0-9]/', '', (string) $event_id );
+        $payloads = array();
+
+        if ( '' === $event_id ) {
+            return $payloads;
+        }
+
+        $payloads['ticket_classes'] = $this->request_endpoint(
+            'ticket_classes',
+            'events/' . $event_id . '/ticket_classes/',
+            array()
+        );
+
+        $payloads['public_collections'] = $this->request_endpoint(
+            'public_collections',
+            'events/' . $event_id . '/collections/public/',
+            array(
+                'expand' => 'image',
+            )
+        );
+
+        $venue_id = isset( $event_payload['venue_id'] ) ? preg_replace( '/[^0-9]/', '', (string) $event_payload['venue_id'] ) : '';
+        if ( '' !== $venue_id ) {
+            $payloads['venue'] = $this->request_endpoint(
+                'venue',
+                'venues/' . $venue_id . '/',
+                array()
+            );
+        }
+
+        $organizer_id = isset( $event_payload['organizer_id'] ) ? preg_replace( '/[^0-9]/', '', (string) $event_payload['organizer_id'] ) : '';
+        if ( '' !== $organizer_id ) {
+            $payloads['organizer'] = $this->request_endpoint(
+                'organizer',
+                'organizers/' . $organizer_id . '/',
+                array()
+            );
+        }
+
+        $category_id = isset( $event_payload['category_id'] ) ? preg_replace( '/[^0-9]/', '', (string) $event_payload['category_id'] ) : '';
+        if ( '' !== $category_id ) {
+            $payloads['category'] = $this->request_endpoint(
+                'category',
+                'categories/' . $category_id . '/',
+                array()
+            );
+        }
+
+        return $payloads;
+    }
+
+    /**
+     * Execute a named API endpoint request for exploratory capture.
+     *
+     * @param string               $label Report label.
+     * @param string               $path Eventbrite v3 path without leading slash.
+     * @param array<string,string> $query Query args.
+     * @return array<string,mixed>
+     */
+    private function request_endpoint( $label, $path, array $query ) {
+        $path     = ltrim( $path, '/' );
+        $endpoint = '/v3/' . $path;
+        $response = $this->request_json( 'https://www.eventbriteapi.com/v3/' . $path, $query, $label );
+
+        return array(
+            'label'    => sanitize_key( $label ),
+            'endpoint' => $endpoint,
+            'query'    => $query,
+            'success'  => (bool) $response['success'],
+            'status'   => (int) $response['status'],
+            'error'    => sanitize_text_field( (string) $response['error'] ),
+            'payload'  => $response['event'],
+        );
+    }
+
+    /**
      * Execute an authenticated Eventbrite JSON request.
      *
      * @param string               $url URL.
