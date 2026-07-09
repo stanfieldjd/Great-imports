@@ -12,7 +12,13 @@
     margin: 12px 0 6px;
 }
 
-.gi-url-input {
+.gi-url-input,
+.gi-token-input {
     margin-right: 8px;
     min-width: 520px;
+}
+
+.gi-inline-check {
+    display: inline-block;
+    margin: 0 8px 0 0;
 }
