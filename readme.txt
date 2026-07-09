@@ -3,19 +3,23 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Full evidence-first Eventbrite importer for collecting review candidates.
+Full evidence-first Eventbrite importer for collecting review candidates and import previews.
 
 == Description ==
 
-Great Imports now uses a full-view-first evidence capture model. It accepts a full Eventbrite event detail URL, extracts the numeric Eventbrite event ID, captures raw source evidence into a dedicated evidence record, and only then creates or updates an internal review candidate.
+Great Imports uses a full-view-first evidence capture model. It accepts a full Eventbrite event detail URL, extracts the numeric Eventbrite event ID, captures raw source evidence into a dedicated evidence record, and only then creates or updates an internal review candidate.
 
 When an Eventbrite private token is configured in WordPress admin, Great Imports captures Eventbrite API evidence and public page evidence. It also captures the public Eventbrite page response and broad HTML-derived evidence such as meta tags, title tags, links, images, canonical URLs, JSON-LD blocks, and script blocks.
 
-The Exploratory Report download exports a sanitized JSON report with plugin state, Events Manager detection, Eventbrite token status without secret values, evidence records, evidence bundles, all tracked Great Imports candidates, source URLs, Eventbrite IDs, fetch methods, status codes, errors, raw Eventbrite API payloads, raw public-page body evidence, extracted HTML evidence, and normalized candidate metadata.
+The Recent Review Candidates table now includes an import preview / dry run. The preview shows what would become public Events Manager event fields, location/address fields, image handling, ticket handling, FAQ dropdowns, internal-only source tracking, and excluded public data. The preview does not save Events Manager events.
+
+Great Imports does not geocode, does not transfer latitude/longitude, and does not assign Events Manager location IDs. It prepares address fields only; Events Manager owns saving, updating, mapping, and location ID behavior.
+
+Eventbrite may appear publicly only as the ticket purchase URL. Other Eventbrite source information remains internal Great Imports evidence/source tracking.
 
 Candidate data is a downstream interpretation of evidence, not the evidence source. Relevance decisions, normalization, filtering, mapping, and handoff happen after evidence capture.
 
@@ -24,6 +28,15 @@ Uninstall removes Great Imports-owned data: private token, Great Imports options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.2 =
+* Added import preview / dry run for review candidates.
+* Added assembled public description preview with overview/details, tickets, organizer, venue, and FAQ dropdowns.
+* Added Events Manager location/address preview that excludes latitude, longitude, geocoding, and manual location ID handling.
+* Added image handling preview for real event images planned for WordPress Media Library import.
+* Added time handling preview for overall event time, set-time evidence, and Events Manager timeslot awareness without automatic conversion.
+* Added stage/room duplication rule notes so same-address multiple-stage evidence is not rejected.
+* Renamed the one-time action to evidence collection / preview refresh.
 
 = 0.2.1 =
 * Fixed uninstall cleanup so Great Imports-owned data is always removed when the plugin is deleted.
