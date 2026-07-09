@@ -55,7 +55,7 @@ final class GI_Eventbrite_API_Client {
      * Fetch an Eventbrite event by numeric ID.
      *
      * @param string $event_id Eventbrite event ID.
-     * @return array{success:bool,event:array<string,mixed>,status:int,error:string}
+     * @return array<string,mixed>
      */
     public function get_event( $event_id ) {
         $event_id = preg_replace( '/[^0-9]/', '', (string) $event_id );
@@ -66,6 +66,7 @@ final class GI_Eventbrite_API_Client {
                 'event'   => array(),
                 'status'  => 0,
                 'error'   => __( 'Eventbrite event ID is missing.', 'great-imports' ),
+                'headers' => array(),
             );
         }
 
@@ -82,7 +83,7 @@ final class GI_Eventbrite_API_Client {
      * Fetch a separate Eventbrite event description.
      *
      * @param string $event_id Eventbrite event ID.
-     * @return array{success:bool,description:string,status:int,error:string,raw_payload:array<string,mixed>}
+     * @return array<string,mixed>
      */
     public function get_description( $event_id ) {
         $event_id = preg_replace( '/[^0-9]/', '', (string) $event_id );
@@ -94,6 +95,7 @@ final class GI_Eventbrite_API_Client {
                 'status'      => 0,
                 'error'       => __( 'Eventbrite event ID is missing.', 'great-imports' ),
                 'raw_payload' => array(),
+                'headers'     => array(),
             );
         }
 
@@ -110,6 +112,7 @@ final class GI_Eventbrite_API_Client {
                 'status'      => $response['status'],
                 'error'       => $response['error'],
                 'raw_payload' => $response['event'],
+                'headers'     => $response['headers'],
             );
         }
 
@@ -119,6 +122,7 @@ final class GI_Eventbrite_API_Client {
             'status'      => $response['status'],
             'error'       => '',
             'raw_payload' => $response['event'],
+            'headers'     => $response['headers'],
         );
     }
 
@@ -195,13 +199,14 @@ final class GI_Eventbrite_API_Client {
         $response = $this->request_json( 'https://www.eventbriteapi.com/v3/' . $path, $query, $label );
 
         return array(
-            'label'    => sanitize_key( $label ),
-            'endpoint' => $endpoint,
-            'query'    => $query,
-            'success'  => (bool) $response['success'],
-            'status'   => (int) $response['status'],
-            'error'    => sanitize_text_field( (string) $response['error'] ),
-            'payload'  => $response['event'],
+            'label'            => sanitize_key( $label ),
+            'endpoint'         => $endpoint,
+            'query'            => $query,
+            'success'          => (bool) $response['success'],
+            'status'           => (int) $response['status'],
+            'error'            => sanitize_text_field( (string) $response['error'] ),
+            'response_headers' => $response['headers'],
+            'payload'          => $response['event'],
         );
     }
 
@@ -211,7 +216,7 @@ final class GI_Eventbrite_API_Client {
      * @param string               $url URL.
      * @param array<string,string> $query Query args.
      * @param string               $payload_label Label for payload.
-     * @return array{success:bool,event:array<string,mixed>,status:int,error:string}
+     * @return array<string,mixed>
      */
     private function request_json( $url, array $query, $payload_label ) {
         $token = $this->get_private_token();
@@ -222,6 +227,7 @@ final class GI_Eventbrite_API_Client {
                 'event'   => array(),
                 'status'  => 0,
                 'error'   => __( 'Eventbrite private token is not configured.', 'great-imports' ),
+                'headers' => array(),
             );
         }
 
@@ -248,21 +254,26 @@ final class GI_Eventbrite_API_Client {
                 'event'   => array(),
                 'status'  => 0,
                 'error'   => $response->get_error_message(),
+                'headers' => array(),
             );
         }
 
-        $status = (int) wp_remote_retrieve_response_code( $response );
-        $body   = (string) wp_remote_retrieve_body( $response );
-        $json   = json_decode( $body, true );
+        $status  = (int) wp_remote_retrieve_response_code( $response );
+        $body    = (string) wp_remote_retrieve_body( $response );
+        $json    = json_decode( $body, true );
+        $headers = $this->headers_to_array( wp_remote_retrieve_headers( $response ) );
 
         if ( ! is_array( $json ) ) {
             return array(
                 'success' => false,
                 'event'   => array(
-                    'raw_body_excerpt' => substr( $body, 0, 4000 ),
+                    'raw_body'        => $body,
+                    'raw_body_sha256' => hash( 'sha256', $body ),
+                    'raw_body_bytes'  => strlen( $body ),
                 ),
                 'status'  => $status,
                 'error'   => sprintf( __( 'Eventbrite API returned unreadable %s JSON.', 'great-imports' ), $payload_label ),
+                'headers' => $headers,
             );
         }
 
@@ -286,6 +297,7 @@ final class GI_Eventbrite_API_Client {
                 'event'   => $json,
                 'status'  => $status,
                 'error'   => $error,
+                'headers' => $headers,
             );
         }
 
@@ -294,6 +306,37 @@ final class GI_Eventbrite_API_Client {
             'event'   => $json,
             'status'  => $status,
             'error'   => '',
+            'headers' => $headers,
         );
+    }
+
+    /**
+     * Convert and sanitize response headers.
+     *
+     * @param mixed $headers Headers.
+     * @return array<string,mixed>
+     */
+    private function headers_to_array( $headers ) {
+        if ( is_object( $headers ) && method_exists( $headers, 'getAll' ) ) {
+            $headers = $headers->getAll();
+        }
+
+        if ( ! is_array( $headers ) ) {
+            return array();
+        }
+
+        $clean = array();
+        foreach ( $headers as $key => $value ) {
+            $lower = strtolower( (string) $key );
+            if ( false !== strpos( $lower, 'authorization' ) || false !== strpos( $lower, 'token' ) || false !== strpos( $lower, 'secret' ) || false !== strpos( $lower, 'key' ) ) {
+                $clean[ $key ] = '[redacted]';
+            } elseif ( is_array( $value ) ) {
+                $clean[ $key ] = array_map( 'sanitize_text_field', array_map( 'strval', $value ) );
+            } else {
+                $clean[ $key ] = sanitize_text_field( (string) $value );
+            }
+        }
+
+        return $clean;
     }
 }
