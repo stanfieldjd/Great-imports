@@ -3,7 +3,7 @@
     border: 1px solid #ccd0d4;
     margin: 16px 0;
     padding: 16px;
-    max-width: 1100px;
+    max-width: 1200px;
 }
 
 .gi-label {
@@ -21,4 +21,69 @@
 .gi-inline-check {
     display: inline-block;
     margin: 0 8px 0 0;
+}
+
+.gi-preview-row td {
+    padding: 0 12px 12px;
+}
+
+.gi-preview {
+    margin: 8px 0;
+}
+
+.gi-preview > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 0;
+}
+
+.gi-preview-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.gi-preview-section {
+    border: 1px solid #dcdcde;
+    padding: 12px;
+    background: #fff;
+}
+
+.gi-preview-section h3 {
+    margin-top: 0;
+}
+
+.gi-preview-description {
+    max-width: 900px;
+}
+
+.gi-description-preview {
+    border: 1px solid #dcdcde;
+    padding: 12px;
+    background: #f6f7f7;
+}
+
+.gi-description-preview details {
+    border-top: 1px solid #dcdcde;
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.gi-description-preview summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.gi-kv th {
+    width: 220px;
+}
+
+.gi-preview-image {
+    height: auto;
+    max-width: 280px;
+}
+
+.gi-simple-list {
+    list-style: disc;
+    margin-left: 20px;
 }
