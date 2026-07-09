@@ -12,8 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-post-types.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-url-validator.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-http-client.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-http-evidence-client.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-html-evidence-extractor.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-jsonld-parser.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-store.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-evidence-store.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-client.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
@@ -44,18 +47,22 @@ final class GI_Plugin {
         add_action( 'init', array( 'GI_Post_Types', 'register' ) );
 
         if ( is_admin() ) {
-            $api_client = new GI_Eventbrite_API_Client();
-            $admin      = new GI_Admin(
+            $api_client     = new GI_Eventbrite_API_Client();
+            $evidence_store = new GI_Evidence_Store();
+            $admin          = new GI_Admin(
                 new GI_Eventbrite_Importer(
                     new GI_Url_Validator(),
                     new GI_Http_Client(),
                     new GI_Jsonld_Parser(),
                     new GI_Candidate_Store(),
                     $api_client,
-                    new GI_Eventbrite_API_Normalizer()
+                    new GI_Eventbrite_API_Normalizer(),
+                    $evidence_store,
+                    new GI_HTTP_Evidence_Client(),
+                    new GI_HTML_Evidence_Extractor()
                 ),
                 $api_client,
-                new GI_Exploratory_Report( $api_client )
+                new GI_Exploratory_Report( $api_client, $evidence_store )
             );
             $admin->register_hooks();
         }
