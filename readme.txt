@@ -3,25 +3,33 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.1.3
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-One-time Eventbrite URL importer for collecting review candidates.
+Full evidence-first Eventbrite importer for collecting review candidates.
 
 == Description ==
 
-Great Imports starts with a simple one-time Eventbrite URL import. It accepts a full Eventbrite event detail URL, extracts the numeric Eventbrite event ID, and stores the result as an internal review candidate.
+Great Imports now uses a full-view-first evidence capture model. It accepts a full Eventbrite event detail URL, extracts the numeric Eventbrite event ID, captures raw source evidence into a dedicated evidence record, and only then creates or updates an internal review candidate.
 
-When an Eventbrite private token is configured in WordPress admin, Great Imports tries the Eventbrite API first. It falls back to public Event JSON-LD only when needed. If the source is blocked, unreadable, empty, or missing verified event data, Great Imports records a blocked/unreadable source candidate and fabricates nothing.
+When an Eventbrite private token is configured in WordPress admin, Great Imports captures Eventbrite API evidence and public page evidence. It also captures the public Eventbrite page response and broad HTML-derived evidence such as meta tags, title tags, links, images, canonical URLs, JSON-LD blocks, and script blocks.
 
-The Exploratory Report download exports a sanitized JSON report with plugin state, Events Manager detection, Eventbrite token status without secret values, all tracked Great Imports candidates, source URLs, Eventbrite IDs, fetch methods, status codes, errors, raw Eventbrite API or JSON-LD payloads when captured, and normalized candidate metadata.
+The Exploratory Report download exports a sanitized JSON report with plugin state, Events Manager detection, Eventbrite token status without secret values, evidence records, evidence bundles, all tracked Great Imports candidates, source URLs, Eventbrite IDs, fetch methods, status codes, errors, raw Eventbrite API payloads, raw public-page body evidence, extracted HTML evidence, and normalized candidate metadata.
 
-Exploratory API mode stores the primary event response plus separate related Eventbrite responses for description, ticket classes, public collections, venue, organizer, and category when the Eventbrite IDs are available.
+Candidate data is a downstream interpretation of evidence, not the evidence source. Relevance decisions, normalization, filtering, mapping, and handoff happen after evidence capture.
 
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.0 =
+* Added full-view-first evidence capture foundation.
+* Added private `gi_evidence` records for raw source evidence bundles.
+* Added raw HTTP response capture including headers, body, hashes, byte counts, content type, status, and timing.
+* Added broad HTML evidence extraction for meta tags, titles, links, images, canonical URLs, JSON-LD blocks, and script blocks.
+* Connected Eventbrite imports to evidence bundles before candidate normalization.
+* Added evidence records and bundles to the Exploratory Report.
 
 = 0.1.3 =
 * Expanded exploratory API capture beyond selected candidate fields.
