@@ -19,6 +19,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-store.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-evidence-store.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-client.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-import-preview-builder.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
@@ -62,7 +63,8 @@ final class GI_Plugin {
                     new GI_HTML_Evidence_Extractor()
                 ),
                 $api_client,
-                new GI_Exploratory_Report( $api_client, $evidence_store )
+                new GI_Exploratory_Report( $api_client, $evidence_store ),
+                new GI_Import_Preview_Builder()
             );
             $admin->register_hooks();
         }
