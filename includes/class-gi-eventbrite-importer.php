@@ -67,6 +67,7 @@ final class GI_Eventbrite_Importer {
                 $description_result = $this->api_client->get_description( $validated['event_id'] );
                 $description        = $description_result['success'] ? $description_result['description'] : '';
                 $candidate          = $this->api_normalizer->normalize_event( $api_result['event'], $description );
+                $related_payloads   = $this->api_client->get_related_exploratory_payloads( $validated['event_id'], $api_result['event'] );
 
                 $candidate['submitted_url']                    = esc_url_raw( $submitted_url );
                 $candidate['source_url']                       = $validated['url'];
@@ -76,7 +77,32 @@ final class GI_Eventbrite_Importer {
                 $candidate['description_api_status']           = $description_result['status'];
                 $candidate['description_api_error']            = $description_result['success'] ? '' : $description_result['error'];
                 $candidate['raw_description_api_response']     = isset( $description_result['raw_payload'] ) ? $description_result['raw_payload'] : array();
-                $candidate['exploratory_report_data_coverage'] = 'api_event_payload,api_description_payload,normalized_candidate_fields';
+                $candidate['exploratory_api_payloads']         = array_merge(
+                    array(
+                        'event_detail' => array(
+                            'label'    => 'event_detail',
+                            'endpoint' => '/v3/events/' . $validated['event_id'] . '/',
+                            'query'    => array(
+                                'expand' => 'venue,ticket_availability,organizer,organizer.logo,category',
+                            ),
+                            'success'  => true,
+                            'status'   => (int) $api_result['status'],
+                            'error'    => '',
+                            'payload'  => $api_result['event'],
+                        ),
+                        'event_description' => array(
+                            'label'    => 'event_description',
+                            'endpoint' => '/v3/events/' . $validated['event_id'] . '/description/',
+                            'query'    => array(),
+                            'success'  => (bool) $description_result['success'],
+                            'status'   => (int) $description_result['status'],
+                            'error'    => $description_result['success'] ? '' : $description_result['error'],
+                            'payload'  => isset( $description_result['raw_payload'] ) ? $description_result['raw_payload'] : array(),
+                        ),
+                    ),
+                    $related_payloads
+                );
+                $candidate['exploratory_report_data_coverage'] = 'api_event_payload,api_description_payload,api_related_payloads,normalized_candidate_fields';
 
                 return $this->store_candidate_result( $candidate );
             }
