@@ -9,26 +9,47 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
     exit;
 }
 
-$delete_data = (bool) get_option( 'great_imports_delete_data_on_uninstall', false );
+global $wpdb;
 
-if ( ! $delete_data ) {
-    return;
-}
+$post_types = array( 'gi_candidate', 'gi_evidence' );
 
-foreach ( array( 'gi_candidate', 'gi_evidence' ) as $post_type ) {
-    $posts = get_posts(
-        array(
-            'post_type'      => $post_type,
-            'post_status'    => 'any',
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
+$placeholders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
+$post_ids     = $wpdb->get_col(
+    $wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type IN ($placeholders)",
+        $post_types
+    )
+);
+
+if ( ! empty( $post_ids ) ) {
+    $post_ids      = array_map( 'intval', $post_ids );
+    $id_placeholds = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
+
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->postmeta} WHERE post_id IN ($id_placeholds)",
+            $post_ids
         )
     );
 
-    foreach ( $posts as $post_id ) {
-        wp_delete_post( (int) $post_id, true );
-    }
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->posts} WHERE ID IN ($id_placeholds)",
+            $post_ids
+        )
+    );
 }
 
-delete_option( 'great_imports_delete_data_on_uninstall' );
-delete_option( 'great_imports_eventbrite_private_token' );
+$wpdb->query(
+    $wpdb->prepare(
+        "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s",
+        $wpdb->esc_like( '_gi_' ) . '%'
+    )
+);
+
+$wpdb->query(
+    $wpdb->prepare(
+        "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name IN ('great_imports_delete_data_on_uninstall', 'great_imports_eventbrite_private_token')",
+        $wpdb->esc_like( 'great_imports_' ) . '%'
+    )
+);
