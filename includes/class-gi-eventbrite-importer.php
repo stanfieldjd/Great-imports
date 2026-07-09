@@ -104,14 +104,15 @@ final class GI_Eventbrite_Importer {
                     $bundle,
                     'eventbrite_api_event_detail',
                     array(
-                        'label'        => 'event_detail',
-                        'capture_type' => 'api_response',
-                        'endpoint'     => '/v3/events/' . $validated['event_id'] . '/',
-                        'query'        => array( 'expand' => 'venue,ticket_availability,organizer,organizer.logo,category' ),
-                        'success'      => true,
-                        'status'       => (int) $api_result['status'],
-                        'error'        => '',
-                        'payload'      => $api_result['event'],
+                        'label'            => 'event_detail',
+                        'capture_type'     => 'api_response',
+                        'endpoint'         => '/v3/events/' . $validated['event_id'] . '/',
+                        'query'            => array( 'expand' => 'venue,ticket_availability,organizer,organizer.logo,category' ),
+                        'success'          => true,
+                        'status'           => (int) $api_result['status'],
+                        'error'            => '',
+                        'response_headers' => isset( $api_result['headers'] ) ? $api_result['headers'] : array(),
+                        'payload'          => $api_result['event'],
                     )
                 );
 
@@ -119,14 +120,15 @@ final class GI_Eventbrite_Importer {
                     $bundle,
                     'eventbrite_api_event_description',
                     array(
-                        'label'        => 'event_description',
-                        'capture_type' => 'api_response',
-                        'endpoint'     => '/v3/events/' . $validated['event_id'] . '/description/',
-                        'query'        => array(),
-                        'success'      => (bool) $description_result['success'],
-                        'status'       => (int) $description_result['status'],
-                        'error'        => $description_result['success'] ? '' : $description_result['error'],
-                        'payload'      => isset( $description_result['raw_payload'] ) ? $description_result['raw_payload'] : array(),
+                        'label'            => 'event_description',
+                        'capture_type'     => 'api_response',
+                        'endpoint'         => '/v3/events/' . $validated['event_id'] . '/description/',
+                        'query'            => array(),
+                        'success'          => (bool) $description_result['success'],
+                        'status'           => (int) $description_result['status'],
+                        'error'            => $description_result['success'] ? '' : $description_result['error'],
+                        'response_headers' => isset( $description_result['headers'] ) ? $description_result['headers'] : array(),
+                        'payload'          => isset( $description_result['raw_payload'] ) ? $description_result['raw_payload'] : array(),
                     )
                 );
 
@@ -160,14 +162,15 @@ final class GI_Eventbrite_Importer {
                 $bundle,
                 'eventbrite_api_event_detail_error',
                 array(
-                    'label'        => 'event_detail_error',
-                    'capture_type' => 'api_response',
-                    'endpoint'     => '/v3/events/' . $validated['event_id'] . '/',
-                    'query'        => array( 'expand' => 'venue,ticket_availability,organizer,organizer.logo,category' ),
-                    'success'      => false,
-                    'status'       => (int) $api_result['status'],
-                    'error'        => $api_error,
-                    'payload'      => $api_error_payload,
+                    'label'            => 'event_detail_error',
+                    'capture_type'     => 'api_response',
+                    'endpoint'         => '/v3/events/' . $validated['event_id'] . '/',
+                    'query'            => array( 'expand' => 'venue,ticket_availability,organizer,organizer.logo,category' ),
+                    'success'          => false,
+                    'status'           => (int) $api_result['status'],
+                    'error'            => $api_error,
+                    'response_headers' => isset( $api_result['headers'] ) ? $api_result['headers'] : array(),
+                    'payload'          => $api_error_payload,
                 )
             );
         }
