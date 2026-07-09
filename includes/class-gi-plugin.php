@@ -48,9 +48,10 @@ final class GI_Plugin {
         add_action( 'init', array( 'GI_Post_Types', 'register' ) );
 
         if ( is_admin() ) {
-            $api_client     = new GI_Eventbrite_API_Client();
-            $evidence_store = new GI_Evidence_Store();
-            $admin          = new GI_Admin(
+            $api_client      = new GI_Eventbrite_API_Client();
+            $evidence_store  = new GI_Evidence_Store();
+            $preview_builder = new GI_Import_Preview_Builder();
+            $admin           = new GI_Admin(
                 new GI_Eventbrite_Importer(
                     new GI_Url_Validator(),
                     new GI_Http_Client(),
@@ -63,8 +64,8 @@ final class GI_Plugin {
                     new GI_HTML_Evidence_Extractor()
                 ),
                 $api_client,
-                new GI_Exploratory_Report( $api_client, $evidence_store ),
-                new GI_Import_Preview_Builder()
+                new GI_Exploratory_Report( $api_client, $evidence_store, $preview_builder ),
+                $preview_builder
             );
             $admin->register_hooks();
         }
