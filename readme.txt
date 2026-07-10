@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.8
+Stable tag: 0.2.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,11 @@ Uninstall and Manual Data Removal use the same Great Imports cleanup path. They 
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+== 0.2.9 ==
+* Reworked candidate review UI into editable event, location/address, ticket/price, location-review, and status/notes sections.
+* Added compact candidate summary with location/address visible during review.
+* Collapsed preserved source values into a read-only comparison section.
 
 = 0.2.8 =
 * Added a candidate review editor under each review candidate.
