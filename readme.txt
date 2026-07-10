@@ -3,11 +3,11 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.4
+Stable tag: 0.2.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Full evidence-first Eventbrite importer for collecting review candidates, source-page display reports, import previews, and review reports.
+Full evidence-first Eventbrite importer for collecting review candidates, source-page display reports, coverage audits, import previews, and review reports.
 
 == Description ==
 
@@ -20,6 +20,8 @@ The Recent Review Candidates table includes an import preview / dry run. The pre
 The Exploratory Report includes source-page display reports so screenshot-visible areas can be reviewed alongside evidence and import preview data. The display report includes title, date/time, ticketing, overview, good-to-know, location, organizer, FAQ, image, related-section marker, visible-text, and browser-rendering-gap sections.
 
 The Exploratory Report also includes import-preview sections so the report shows proposed public Events Manager fields, proposed public description, location/address-only handoff, image handling, time/timeslot handling, stage/room handling, internal source tracking, and excluded public/import fields.
+
+The Exploratory Report now includes source coverage audits. Coverage audits list captured sections, missing required sections, missing optional sections, excluded fields, browser-rendering gaps, and import-readiness status so source information does not disappear silently.
 
 Report hygiene redacts secret, cookie, rate-limit, Eventbrite internal header, and structured coordinate fields by field name. Structured latitude/longitude fields are not exported for review/import reporting because Great Imports does not use them.
 
@@ -34,6 +36,13 @@ Uninstall removes Great Imports-owned data: private token, Great Imports options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.5 =
+* Added source coverage audits to the Exploratory Report.
+* Added captured/missing-required/missing-optional coverage sections for title, date/time, timezone, venue, address, stage/room, overview, good-to-know, FAQ, ticketing, organizer, images, related cards, internal tracking, and excluded fields.
+* Added import-readiness status based on missing required review sections.
+* Added browser gap summary to distinguish truly missing fields from browser-rendered-only content.
+* Added report summary counts for missing required and optional coverage sections.
 
 = 0.2.4 =
 * Added source-page display reports to the Exploratory Report for screenshot-style review.
