@@ -19,10 +19,14 @@ final class GI_Exploratory_Report {
     /** @var GI_Import_Preview_Builder */
     private $preview_builder;
 
-    public function __construct( GI_Eventbrite_API_Client $api_client, GI_Evidence_Store $evidence_store, GI_Import_Preview_Builder $preview_builder ) {
-        $this->api_client     = $api_client;
-        $this->evidence_store = $evidence_store;
+    /** @var GI_Page_Display_Report_Builder */
+    private $display_builder;
+
+    public function __construct( GI_Eventbrite_API_Client $api_client, GI_Evidence_Store $evidence_store, GI_Import_Preview_Builder $preview_builder, GI_Page_Display_Report_Builder $display_builder ) {
+        $this->api_client      = $api_client;
+        $this->evidence_store  = $evidence_store;
         $this->preview_builder = $preview_builder;
+        $this->display_builder = $display_builder;
     }
 
     /**
@@ -48,28 +52,30 @@ final class GI_Exploratory_Report {
     public function generate() {
         global $wp_version;
 
-        $candidate_posts = $this->get_candidate_posts();
-        $candidates      = $this->format_candidates( $candidate_posts );
-        $import_previews = $this->get_import_previews( $candidate_posts );
-        $evidence        = $this->get_evidence_records();
+        $candidate_posts      = $this->get_candidate_posts();
+        $candidates           = $this->format_candidates( $candidate_posts );
+        $source_page_displays = $this->get_source_page_display_reports( $candidate_posts );
+        $import_previews      = $this->get_import_previews( $candidate_posts );
+        $evidence             = $this->get_evidence_records();
 
         return array(
-            'report_type'      => 'great_imports_exploratory_report',
-            'generated_at'     => current_time( 'mysql' ),
-            'generated_at_utc' => gmdate( 'Y-m-d H:i:s' ),
-            'capture_model'    => array(
-                'rule'           => 'Full-view-first evidence capture before relevance, normalization, filtering, mapping, or handoff decisions.',
-                'candidate_role' => 'Candidate data is a downstream interpretation of evidence, not the evidence source.',
-                'preview_role'   => 'Import previews show proposed public Events Manager fields and exclusions. They do not save Events Manager events.',
+            'report_type'                 => 'great_imports_exploratory_report',
+            'generated_at'                => current_time( 'mysql' ),
+            'generated_at_utc'            => gmdate( 'Y-m-d H:i:s' ),
+            'capture_model'               => array(
+                'rule'                => 'Full-view-first evidence capture before relevance, normalization, filtering, mapping, or handoff decisions.',
+                'candidate_role'      => 'Candidate data is a downstream interpretation of evidence, not the evidence source.',
+                'display_report_role' => 'Source page display reports show screenshot-style page evidence extracted from captured source evidence.',
+                'preview_role'        => 'Import previews show proposed public Events Manager fields and exclusions. They do not save Events Manager events.',
             ),
-            'report_hygiene'   => array(
-                'secret_values_exported'              => false,
-                'cookie_values_exported'              => false,
-                'rate_limit_header_values_exported'   => false,
-                'structured_coordinate_fields_exported'=> false,
-                'note'                                => 'Token, secret, password, authorization, bearer, key-like, cookie, rate-limit, Eventbrite internal header, and structured coordinate fields are redacted by field name.',
+            'report_hygiene'              => array(
+                'secret_values_exported'                => false,
+                'cookie_values_exported'                => false,
+                'rate_limit_header_values_exported'     => false,
+                'structured_coordinate_fields_exported' => false,
+                'note'                                  => 'Token, secret, password, authorization, bearer, key-like, cookie, rate-limit, Eventbrite internal header, and structured coordinate fields are redacted by field name.',
             ),
-            'environment'      => array(
+            'environment'                 => array(
                 'plugin_version'    => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
                 'site_url'          => site_url(),
                 'home_url'          => home_url(),
@@ -79,14 +85,15 @@ final class GI_Exploratory_Report {
                 'gmt_offset'        => (string) get_option( 'gmt_offset', '' ),
                 'events_manager'    => $this->events_manager_status(),
             ),
-            'settings_status'  => array(
+            'settings_status'             => array(
                 'eventbrite_private_token_configured' => $this->api_client->has_private_token(),
                 'eventbrite_private_token_value'      => $this->api_client->has_private_token() ? '[configured-not-exported]' : '[not-configured]',
             ),
-            'summary'          => $this->summarize_all( $candidates, $evidence, $import_previews ),
-            'import_previews'  => $import_previews,
-            'evidence_records' => $evidence,
-            'candidates'       => $candidates,
+            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays ),
+            'source_page_display_reports' => $source_page_displays,
+            'import_previews'             => $import_previews,
+            'evidence_records'            => $evidence,
+            'candidates'                  => $candidates,
         );
     }
 
@@ -145,6 +152,22 @@ final class GI_Exploratory_Report {
         }
 
         return $candidates;
+    }
+
+    /**
+     * Build source-page display reports for screenshot-style review.
+     *
+     * @param WP_Post[] $posts Candidate posts.
+     * @return array<int,array<string,mixed>>
+     */
+    private function get_source_page_display_reports( array $posts ) {
+        $reports = array();
+
+        foreach ( $posts as $post ) {
+            $reports[] = $this->sanitize_report_value( 'source_page_display_report', $this->display_builder->build_for_candidate( $post ) );
+        }
+
+        return $reports;
     }
 
     /**
@@ -231,26 +254,31 @@ final class GI_Exploratory_Report {
     }
 
     /**
-     * Summarize candidates, evidence records, and previews.
+     * Summarize candidates, evidence records, previews, and source-page display reports.
      *
      * @param array<int,array<string,mixed>> $candidates Candidates.
      * @param array<int,array<string,mixed>> $evidence Evidence records.
      * @param array<int,array<string,mixed>> $previews Import previews.
+     * @param array<int,array<string,mixed>> $display_reports Display reports.
      * @return array<string,mixed>
      */
-    private function summarize_all( array $candidates, array $evidence, array $previews ) {
+    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports ) {
         $summary = array(
-            'total_candidates'            => count( $candidates ),
-            'total_evidence_records'      => count( $evidence ),
-            'total_import_previews'       => count( $previews ),
-            'candidate_by_status'         => array(),
-            'candidate_by_source_type'    => array(),
-            'candidate_by_fetch_method'   => array(),
-            'evidence_items_total'        => 0,
-            'evidence_item_labels'        => array(),
-            'preview_exclusion_labels'    => array(),
-            'preview_stage_room_detected' => 0,
-            'preview_timeslots_detected'  => 0,
+            'total_candidates'                 => count( $candidates ),
+            'total_evidence_records'           => count( $evidence ),
+            'total_import_previews'            => count( $previews ),
+            'total_source_page_display_reports'=> count( $display_reports ),
+            'candidate_by_status'              => array(),
+            'candidate_by_source_type'         => array(),
+            'candidate_by_fetch_method'        => array(),
+            'evidence_items_total'             => 0,
+            'evidence_item_labels'             => array(),
+            'preview_exclusion_labels'         => array(),
+            'preview_stage_room_detected'      => 0,
+            'preview_timeslots_detected'       => 0,
+            'display_visible_text_lines_total' => 0,
+            'display_faq_items_total'          => 0,
+            'display_related_markers_total'    => 0,
         );
 
         foreach ( $candidates as $candidate ) {
@@ -292,6 +320,18 @@ final class GI_Exploratory_Report {
                 }
                 $label = (string) $label;
                 $summary['preview_exclusion_labels'][ $label ] = isset( $summary['preview_exclusion_labels'][ $label ] ) ? $summary['preview_exclusion_labels'][ $label ] + 1 : 1;
+            }
+        }
+
+        foreach ( $display_reports as $display ) {
+            if ( ! empty( $display['visible_text_report']['line_count'] ) ) {
+                $summary['display_visible_text_lines_total'] += (int) $display['visible_text_report']['line_count'];
+            }
+            if ( ! empty( $display['screenshot_visible_sections']['faq']['count'] ) ) {
+                $summary['display_faq_items_total'] += (int) $display['screenshot_visible_sections']['faq']['count'];
+            }
+            if ( ! empty( $display['screenshot_visible_sections']['related']['section_markers_found'] ) && is_array( $display['screenshot_visible_sections']['related']['section_markers_found'] ) ) {
+                $summary['display_related_markers_total'] += count( $display['screenshot_visible_sections']['related']['section_markers_found'] );
             }
         }
 
