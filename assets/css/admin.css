@@ -233,13 +233,6 @@
     overflow-wrap: anywhere;
 }
 
-.gi-review-submit {
-    border-top: 1px solid #dcdcde;
-    margin-top: 14px;
-    padding-top: 12px;
-}
-
-/* Support the expanded v0.2.9 section markup when present. */
 .gi-review-summary-bar {
     background: #f6f7f7;
     border: 1px solid #dcdcde;
@@ -348,6 +341,14 @@
     margin-top: 0;
 }
 
+.gi-review-form .regular-text,
+.gi-review-select,
+.gi-review-textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    width: 100%;
+}
+
 .gi-review-context-box {
     background: #f6f7f7;
     border: 1px solid #dcdcde;
@@ -364,6 +365,12 @@
 .gi-source-values-section .description,
 .gi-location-decision-section .description {
     padding: 0 12px 12px;
+}
+
+.gi-review-submit {
+    border-top: 1px solid #dcdcde;
+    margin-top: 14px;
+    padding-top: 12px;
 }
 
 @media screen and (max-width: 1100px) {
