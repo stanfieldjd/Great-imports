@@ -20,6 +20,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-evidence-store.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-client.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-import-preview-builder.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-page-display-report-builder.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
@@ -51,6 +52,7 @@ final class GI_Plugin {
             $api_client      = new GI_Eventbrite_API_Client();
             $evidence_store  = new GI_Evidence_Store();
             $preview_builder = new GI_Import_Preview_Builder();
+            $display_builder = new GI_Page_Display_Report_Builder();
             $admin           = new GI_Admin(
                 new GI_Eventbrite_Importer(
                     new GI_Url_Validator(),
@@ -64,7 +66,7 @@ final class GI_Plugin {
                     new GI_HTML_Evidence_Extractor()
                 ),
                 $api_client,
-                new GI_Exploratory_Report( $api_client, $evidence_store, $preview_builder ),
+                new GI_Exploratory_Report( $api_client, $evidence_store, $preview_builder, $display_builder ),
                 $preview_builder
             );
             $admin->register_hooks();
