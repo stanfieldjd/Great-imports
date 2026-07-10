@@ -3,11 +3,11 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.5
+Stable tag: 0.2.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Full evidence-first Eventbrite importer for collecting review candidates, source-page display reports, coverage audits, import previews, and review reports.
+Full evidence-first Eventbrite importer with manual cleanup, review candidates, source-page display reports, coverage audits, import previews, and review reports.
 
 == Description ==
 
@@ -23,6 +23,8 @@ The Exploratory Report also includes import-preview sections so the report shows
 
 The Exploratory Report now includes source coverage audits. Coverage audits list captured sections, missing required sections, missing optional sections, excluded fields, browser-rendering gaps, and import-readiness status so source information does not disappear silently.
 
+Manual Data Removal is available in the Great Imports admin page. It removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
+
 Report hygiene redacts secret, cookie, rate-limit, Eventbrite internal header, and structured coordinate fields by field name. Structured latitude/longitude fields are not exported for review/import reporting because Great Imports does not use them.
 
 Great Imports does not geocode, does not transfer latitude/longitude, and does not assign Events Manager location IDs. It prepares address fields only; Events Manager owns saving, updating, mapping, and location ID behavior.
@@ -31,11 +33,18 @@ Eventbrite may appear publicly only as the ticket purchase URL. Other Eventbrite
 
 Candidate data is a downstream interpretation of evidence, not the evidence source. Relevance decisions, normalization, filtering, mapping, and handoff happen after evidence capture.
 
-Uninstall removes Great Imports-owned data: private token, Great Imports options, `gi_candidate` posts, `gi_evidence` posts, and Great Imports `_gi_` post metadata. It does not delete Events Manager events, Events Manager locations, or media.
+Uninstall and Manual Data Removal use the same Great Imports cleanup path. They do not delete Events Manager events, Events Manager locations, or media.
 
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.6 =
+* Added Manual Data Removal to the Great Imports admin page.
+* Manual cleanup removes only Great Imports-owned candidates, evidence records, `_gi_` metadata, Great Imports options, the Eventbrite private token, and Great Imports transients.
+* Manual cleanup does not delete Events Manager events, locations, tickets, media, categories, tags, or venue data.
+* Shared the same cleanup path between manual cleanup and uninstall.
+* Added confirmation checkbox and REMOVE phrase requirement before cleanup runs.
 
 = 0.2.5 =
 * Added source coverage audits to the Exploratory Report.
