@@ -140,3 +140,184 @@
     list-style: disc;
     margin-left: 20px;
 }
+
+/* Candidate review workspace v0.2.9 */
+.gi-candidate-table th:first-child,
+.gi-candidate-table td:first-child {
+    min-width: 320px;
+}
+
+.gi-candidate-table td strong {
+    display: inline-block;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    white-space: nowrap;
+}
+
+.gi-review-summary-bar {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(260px, 2fr) minmax(200px, 1fr) minmax(260px, 1.5fr) minmax(120px, .75fr);
+    margin: 12px 0;
+    padding: 10px;
+}
+
+.gi-review-summary-item span,
+.gi-review-context-box span {
+    color: #646970;
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+}
+
+.gi-review-summary-item strong,
+.gi-review-context-box strong {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.gi-review-summary-item em,
+.gi-review-context-box em {
+    color: #50575e;
+    display: block;
+    font-style: normal;
+    margin-top: 3px;
+    overflow-wrap: anywhere;
+}
+
+.gi-review-workspace {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(520px, 1.55fr) minmax(320px, .95fr);
+    margin-top: 12px;
+}
+
+.gi-review-main-column,
+.gi-review-side-column {
+    display: grid;
+    gap: 12px;
+    align-content: start;
+}
+
+.gi-review-section {
+    background: #fff;
+    border: 1px solid #dcdcde;
+}
+
+.gi-review-section > summary {
+    align-items: baseline;
+    cursor: pointer;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 10px 12px;
+}
+
+.gi-review-section > summary span {
+    font-weight: 700;
+}
+
+.gi-review-section > summary small {
+    color: #646970;
+    font-size: 12px;
+    font-weight: 400;
+    text-align: right;
+}
+
+.gi-review-section[open] > summary {
+    border-bottom: 1px solid #dcdcde;
+}
+
+.gi-field-grid {
+    display: grid;
+    gap: 10px 12px;
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    padding: 12px;
+}
+
+.gi-field-stack {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+}
+
+.gi-field {
+    min-width: 0;
+}
+
+.gi-field-wide {
+    grid-column: 1 / -1;
+}
+
+.gi-field-small {
+    max-width: 220px;
+}
+
+.gi-review-section .gi-label {
+    margin-top: 0;
+}
+
+.gi-review-form .regular-text,
+.gi-review-select,
+.gi-review-textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    width: 100%;
+}
+
+.gi-review-context-box {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    margin: 12px 12px 0;
+    padding: 10px;
+}
+
+.gi-source-values-section .gi-kv {
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+}
+
+.gi-source-values-section .description,
+.gi-location-decision-section .description {
+    padding: 0 12px 12px;
+}
+
+.gi-review-submit {
+    border-top: 1px solid #dcdcde;
+    margin-top: 14px;
+    padding-top: 12px;
+}
+
+@media screen and (max-width: 1100px) {
+    .gi-review-summary-bar,
+    .gi-review-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .gi-review-section > summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .gi-review-section > summary small {
+        text-align: left;
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .gi-field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gi-field-small {
+        max-width: none;
+    }
+}
