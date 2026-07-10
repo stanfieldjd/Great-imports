@@ -18,21 +18,26 @@ final class GI_HTML_Evidence_Extractor {
      * @return array<string,mixed>
      */
     public function extract( $html, $base_url = '' ) {
-        $html = (string) $html;
+        $html               = (string) $html;
+        $visible_text_lines = $this->extract_visible_text_lines( $html );
 
         return array(
-            'label'          => 'html_extracted_evidence',
-            'capture_type'   => 'html_extraction',
-            'base_url'       => esc_url_raw( (string) $base_url ),
-            'body_sha256'    => hash( 'sha256', $html ),
-            'body_bytes'     => strlen( $html ),
-            'meta_tags'      => $this->extract_meta_tags( $html ),
-            'title_tags'     => $this->extract_title_tags( $html ),
-            'links'          => $this->extract_attributes( $html, 'a', 'href' ),
-            'images'         => $this->extract_attributes( $html, 'img', 'src' ),
-            'canonical'      => $this->extract_link_rels( $html, 'canonical' ),
-            'json_ld_blocks' => $this->extract_json_ld_blocks( $html ),
-            'script_blocks'  => $this->extract_script_blocks( $html ),
+            'label'                    => 'html_extracted_evidence',
+            'capture_type'             => 'html_extraction',
+            'base_url'                 => esc_url_raw( (string) $base_url ),
+            'body_sha256'              => hash( 'sha256', $html ),
+            'body_bytes'               => strlen( $html ),
+            'meta_tags'                => $this->extract_meta_tags( $html ),
+            'title_tags'               => $this->extract_title_tags( $html ),
+            'links'                    => $this->extract_attributes( $html, 'a', 'href' ),
+            'images'                   => $this->extract_attributes( $html, 'img', 'src' ),
+            'canonical'                => $this->extract_link_rels( $html, 'canonical' ),
+            'json_ld_blocks'           => $this->extract_json_ld_blocks( $html ),
+            'script_blocks'            => $this->extract_script_blocks( $html ),
+            'visible_text_lines'       => $visible_text_lines,
+            'visible_text_line_count'  => count( $visible_text_lines ),
+            'visible_text_sha256'      => hash( 'sha256', implode( "\n", $visible_text_lines ) ),
+            'display_section_markers'  => $this->display_section_markers( $visible_text_lines ),
         );
     }
 
@@ -175,6 +180,80 @@ final class GI_HTML_Evidence_Extractor {
         }
 
         return $items;
+    }
+
+    /**
+     * Extract visible-ish initial HTML text lines for report review.
+     *
+     * @param string $html HTML.
+     * @return array<int,string>
+     */
+    private function extract_visible_text_lines( $html ) {
+        $html = (string) $html;
+        $html = preg_replace( '/<script\b[^>]*>.*?<\/script>/is', ' ', $html );
+        $html = preg_replace( '/<style\b[^>]*>.*?<\/style>/is', ' ', $html );
+        $html = preg_replace( '/<svg\b[^>]*>.*?<\/svg>/is', ' ', $html );
+        $html = preg_replace( '/<noscript\b[^>]*>.*?<\/noscript>/is', ' ', $html );
+        $html = preg_replace( '/<(br|p|div|section|article|header|footer|li|h[1-6]|tr|td|th)\b[^>]*>/i', "\n", $html );
+
+        $text = wp_strip_all_tags( html_entity_decode( $html, ENT_QUOTES | ENT_HTML5 ) );
+        $text = preg_replace( "/[ \t\r\0\x0B]+/", ' ', $text );
+        $raw  = preg_split( "/\n+|\s{3,}/", (string) $text );
+
+        $lines = array();
+        foreach ( $raw as $line ) {
+            $line = trim( preg_replace( '/\s+/', ' ', (string) $line ) );
+            if ( '' === $line || strlen( $line ) < 2 ) {
+                continue;
+            }
+            $lines[] = sanitize_text_field( $line );
+        }
+
+        return array_values( array_slice( array_unique( $lines ), 0, 500 ) );
+    }
+
+    /**
+     * Locate screenshot-style section markers in the captured initial text.
+     *
+     * @param array<int,string> $lines Visible text lines.
+     * @return array<string,array<int,string>>
+     */
+    private function display_section_markers( array $lines ) {
+        return array(
+            'overview'       => $this->lines_containing_any( $lines, array( 'overview', 'about this event' ), 10 ),
+            'good_to_know'   => $this->lines_containing_any( $lines, array( 'good to know', 'refund policy', 'hours', 'in person' ), 20 ),
+            'location'       => $this->lines_containing_any( $lines, array( 'location', 'directions', 'driving', 'walking', 'public transport', 'biking' ), 20 ),
+            'organizer'      => $this->lines_containing_any( $lines, array( 'organized by', 'organizer', 'followers', 'contact', 'follow' ), 20 ),
+            'faq'            => $this->lines_containing_any( $lines, array( 'frequently asked questions', 'where do i park', 'refund', 'age restrictions', 'outside food', 'serve food' ), 30 ),
+            'related_events' => $this->lines_containing_any( $lines, array( 'more events from', 'you might also like', 'related events', 'similar events' ), 20 ),
+        );
+    }
+
+    /**
+     * Get matching lines for a list of keywords.
+     *
+     * @param array<int,string> $lines Lines.
+     * @param array<int,string> $needles Needles.
+     * @param int $limit Limit.
+     * @return array<int,string>
+     */
+    private function lines_containing_any( array $lines, array $needles, $limit = 25 ) {
+        $matches = array();
+        foreach ( $lines as $line ) {
+            $lower = strtolower( (string) $line );
+            foreach ( $needles as $needle ) {
+                if ( false !== strpos( $lower, strtolower( (string) $needle ) ) ) {
+                    $matches[] = sanitize_text_field( (string) $line );
+                    break;
+                }
+            }
+
+            if ( count( $matches ) >= $limit ) {
+                break;
+            }
+        }
+
+        return array_values( array_unique( $matches ) );
     }
 
     /**
