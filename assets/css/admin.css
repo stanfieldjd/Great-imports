@@ -25,10 +25,24 @@
 
 .gi-danger-card {
     border-left: 4px solid #d63638;
+    margin-top: 28px;
 }
 
-.gi-danger-card h2 {
+.gi-danger-card h2,
+.gi-danger-details > summary {
     color: #8a2424;
+}
+
+.gi-danger-details > summary {
+    cursor: pointer;
+    font-weight: 700;
+    padding: 4px 0;
+}
+
+.gi-danger-body {
+    border-top: 1px solid #dcdcde;
+    margin-top: 12px;
+    padding-top: 12px;
 }
 
 .gi-danger-card .button.delete {
@@ -56,10 +70,19 @@
     padding: 8px 0;
 }
 
-.gi-preview-grid {
+.gi-review-editor > summary {
+    color: #135e96;
+}
+
+.gi-preview-grid,
+.gi-review-grid {
     display: grid;
     gap: 12px;
     margin-top: 12px;
+}
+
+.gi-review-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 .gi-preview-section {
@@ -74,6 +97,17 @@
 
 .gi-preview-description {
     max-width: 900px;
+}
+
+.gi-review-form .regular-text,
+.gi-review-select,
+.gi-review-textarea {
+    max-width: 100%;
+    width: 100%;
+}
+
+.gi-review-submit {
+    margin-bottom: 0;
 }
 
 .gi-description-preview {
