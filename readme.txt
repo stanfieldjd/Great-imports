@@ -41,10 +41,11 @@ This version does not schedule recurring imports, does not directly publish Even
 
 == Changelog ==
 
-== 0.2.9 ==
-* Reworked candidate review UI into editable event, location/address, ticket/price, location-review, and status/notes sections.
-* Added compact candidate summary with location/address visible during review.
-* Collapsed preserved source values into a read-only comparison section.
+= 0.2.9 =
+* Reworked candidate review presentation into clearer two-column editable sections.
+* Kept event, location/address, ticket/price, location decision, and status/notes fields editable.
+* Kept location and address fields prominent in the review editor.
+* Kept preserved source values as a separate read-only comparison section.
 
 = 0.2.8 =
 * Added a candidate review editor under each review candidate.
