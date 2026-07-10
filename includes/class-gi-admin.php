@@ -38,6 +38,7 @@ final class GI_Admin {
         add_action( 'admin_post_gi_eventbrite_import_once', array( $this, 'handle_eventbrite_import_once' ) );
         add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
+        add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
     }
 
@@ -130,6 +131,24 @@ final class GI_Admin {
         );
     }
 
+    public function handle_manual_data_removal() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to remove Great Imports data.', 'great-imports' ) );
+        }
+
+        check_admin_referer( 'gi_manual_data_removal' );
+
+        $confirmed = ! empty( $_POST['gi_manual_cleanup_confirm'] );
+        $phrase    = isset( $_POST['gi_manual_cleanup_phrase'] ) ? strtoupper( trim( sanitize_text_field( wp_unslash( $_POST['gi_manual_cleanup_phrase'] ) ) ) ) : '';
+
+        if ( ! $confirmed || 'REMOVE' !== $phrase ) {
+            $this->redirect_with_notice( 'error', __( 'Manual cleanup was not run. Check the confirmation box and type REMOVE.', 'great-imports' ), 0 );
+        }
+
+        $counts = GI_Data_Cleaner::cleanup();
+        $this->redirect_with_notice( 'success', GI_Data_Cleaner::summary_message( $counts ), 0 );
+    }
+
     public function render_page() {
         if ( ! current_user_can( 'manage_options' ) ) {
             return;
@@ -174,12 +193,27 @@ final class GI_Admin {
 
             <div class="gi-card">
                 <h2><?php esc_html_e( 'Exploratory Report', 'great-imports' ); ?></h2>
-                <p><?php esc_html_e( 'Download a sanitized JSON report showing plugin state, Events Manager detection, Eventbrite token status, candidate summaries, source URLs, Eventbrite IDs, fetch methods, status codes, errors, and tracked Great Imports candidate metadata.', 'great-imports' ); ?></p>
+                <p><?php esc_html_e( 'Download a sanitized JSON report showing plugin state, Events Manager detection, Eventbrite token status, candidates, evidence records, source-page display reports, import previews, and source coverage audits.', 'great-imports' ); ?></p>
                 <p><?php esc_html_e( 'Secret values and cookies are not exported.', 'great-imports' ); ?></p>
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                     <?php wp_nonce_field( 'gi_download_exploratory_report' ); ?>
                     <input type="hidden" name="action" value="gi_download_exploratory_report" />
                     <?php submit_button( __( 'Download Exploratory Report', 'great-imports' ), 'secondary', 'submit', false ); ?>
+                </form>
+            </div>
+
+            <div class="gi-card gi-danger-card">
+                <h2><?php esc_html_e( 'Manual Data Removal', 'great-imports' ); ?></h2>
+                <p><strong><?php esc_html_e( 'Use this when uninstall cleanup did not remove Great Imports data.', 'great-imports' ); ?></strong></p>
+                <p><?php esc_html_e( 'This removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients.', 'great-imports' ); ?></p>
+                <p><?php esc_html_e( 'It does not delete Events Manager events, locations, tickets, media, categories, tags, or venue data.', 'great-imports' ); ?></p>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                    <?php wp_nonce_field( 'gi_manual_data_removal' ); ?>
+                    <input type="hidden" name="action" value="gi_manual_data_removal" />
+                    <label class="gi-label"><input type="checkbox" name="gi_manual_cleanup_confirm" value="1" required /> <?php esc_html_e( 'I understand this permanently removes Great Imports review/evidence data and the saved Eventbrite token.', 'great-imports' ); ?></label>
+                    <label for="gi_manual_cleanup_phrase" class="gi-label"><?php esc_html_e( 'Type REMOVE to confirm', 'great-imports' ); ?></label>
+                    <input type="text" class="regular-text" id="gi_manual_cleanup_phrase" name="gi_manual_cleanup_phrase" value="" autocomplete="off" required />
+                    <?php submit_button( __( 'Remove Great Imports Data', 'great-imports' ), 'delete', 'submit', false ); ?>
                 </form>
             </div>
 
