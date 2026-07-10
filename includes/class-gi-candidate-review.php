@@ -26,6 +26,7 @@ final class GI_Candidate_Review {
             );
         }
 
+        $data   = self::normalize_datetime_parts( $data );
         $fields = array(
             'title'                => 'text',
             'start_date'           => 'text',
@@ -40,6 +41,8 @@ final class GI_Candidate_Review {
             'location_country'     => 'text',
             'stage_room'           => 'text',
             'ticket_url'           => 'url',
+            'image_url'            => 'url',
+            'description_html'     => 'html',
             'price'                => 'text',
             'price_currency'       => 'text',
             'reviewer_notes'       => 'textarea',
@@ -50,7 +53,11 @@ final class GI_Candidate_Review {
         );
 
         foreach ( $fields as $field => $type ) {
-            $raw   = isset( $data[ $field ] ) ? $data[ $field ] : '';
+            if ( ! array_key_exists( $field, $data ) ) {
+                continue;
+            }
+
+            $raw   = $data[ $field ];
             $value = self::sanitize_review_value( $raw, $type );
             update_post_meta( $candidate_id, '_gi_review_' . sanitize_key( $field ), $value );
         }
@@ -120,11 +127,6 @@ final class GI_Candidate_Review {
         return sanitize_text_field( (string) $value );
     }
 
-    /**
-     * Candidate review status choices.
-     *
-     * @return array<string,string>
-     */
     public static function review_status_options() {
         return array(
             'needs_review'       => __( 'Needs review', 'great-imports' ),
@@ -135,11 +137,6 @@ final class GI_Candidate_Review {
         );
     }
 
-    /**
-     * Location decision choices.
-     *
-     * @return array<string,string>
-     */
     public static function location_decision_options() {
         return array(
             'use_source_detected' => __( 'Use source-detected location/address', 'great-imports' ),
@@ -149,11 +146,6 @@ final class GI_Candidate_Review {
         );
     }
 
-    /**
-     * Address verification choices.
-     *
-     * @return array<string,string>
-     */
     public static function address_verification_options() {
         return array(
             'source_looks_correct' => __( 'Source address looks correct', 'great-imports' ),
@@ -163,18 +155,10 @@ final class GI_Candidate_Review {
         );
     }
 
-    /**
-     * Find possible Events Manager location matches. Read-only.
-     *
-     * @param int $candidate_id Candidate post ID.
-     * @param int $limit Maximum suggestions.
-     * @return array<int,array<string,string>>
-     */
     public static function location_suggestions( $candidate_id, $limit = 8 ) {
         $candidate_id = absint( $candidate_id );
         $limit        = max( 1, min( 25, absint( $limit ) ) );
-
-        $candidate = array(
+        $candidate    = array(
             'name'     => self::value( $candidate_id, 'location_name' ),
             'address'  => self::value( $candidate_id, 'location_address_1' ),
             'city'     => self::value( $candidate_id, 'location_city' ),
@@ -182,64 +166,66 @@ final class GI_Candidate_Review {
             'postcode' => self::value( $candidate_id, 'location_postal_code' ),
             'country'  => self::value( $candidate_id, 'location_country' ),
         );
-
-        $suggestions = self::suggestions_from_em_table( $candidate, $limit );
+        $suggestions  = self::suggestions_from_em_table( $candidate, $limit );
         if ( empty( $suggestions ) ) {
             $suggestions = self::suggestions_from_location_posts( $candidate, $limit );
         }
-
         return array_slice( $suggestions, 0, $limit );
     }
 
-    /**
-     * @param mixed $value Raw value.
-     * @param string $type Sanitizer type.
-     */
     private static function sanitize_review_value( $value, $type ) {
         if ( is_array( $value ) || is_object( $value ) ) {
             return '';
         }
-
         $value = wp_unslash( (string) $value );
-
         if ( 'url' === $type ) {
             return esc_url_raw( $value );
         }
-
         if ( 'textarea' === $type ) {
             return sanitize_textarea_field( $value );
         }
-
+        if ( 'html' === $type ) {
+            return wp_kses_post( $value );
+        }
         if ( 'key' === $type ) {
             return sanitize_key( $value );
         }
-
         if ( 'absint' === $type ) {
             return absint( $value );
         }
-
         return sanitize_text_field( $value );
     }
 
-    /**
-     * Read possible matches from Events Manager's location table.
-     *
-     * @param array<string,string> $candidate Candidate location values.
-     * @param int $limit Max rows.
-     * @return array<int,array<string,string>>
-     */
+    private static function normalize_datetime_parts( array $data ) {
+        foreach ( array( 'start_date', 'end_date' ) as $field ) {
+            $date_key = $field . '_date';
+            $time_key = $field . '_time';
+            if ( ! array_key_exists( $date_key, $data ) && ! array_key_exists( $time_key, $data ) ) {
+                continue;
+            }
+            $date = isset( $data[ $date_key ] ) ? sanitize_text_field( wp_unslash( (string) $data[ $date_key ] ) ) : '';
+            $time = isset( $data[ $time_key ] ) ? sanitize_text_field( wp_unslash( (string) $data[ $time_key ] ) ) : '';
+            if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) && preg_match( '/^\d{2}:\d{2}$/', $time ) ) {
+                $data[ $field ] = $date . 'T' . $time . ':00';
+            } elseif ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+                $data[ $field ] = $date . 'T00:00:00';
+            } else {
+                $data[ $field ] = '';
+            }
+            unset( $data[ $date_key ], $data[ $time_key ] );
+        }
+        return $data;
+    }
+
     private static function suggestions_from_em_table( array $candidate, $limit ) {
         global $wpdb;
-
         $table = $wpdb->prefix . 'em_locations';
         $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
         if ( $found !== $table ) {
             return array();
         }
-
         $clauses = array();
         $params  = array();
-
         if ( '' !== $candidate['name'] ) {
             $clauses[] = 'location_name LIKE %s';
             $params[]  = '%' . $wpdb->esc_like( $candidate['name'] ) . '%';
@@ -256,19 +242,15 @@ final class GI_Candidate_Review {
             $clauses[] = 'location_town LIKE %s';
             $params[]  = '%' . $wpdb->esc_like( $candidate['city'] ) . '%';
         }
-
         if ( empty( $clauses ) ) {
             return array();
         }
-
-        $sql = "SELECT location_id, location_name, location_address, location_town, location_state, location_postcode, location_country FROM {$table} WHERE (" . implode( ' OR ', $clauses ) . ') ORDER BY location_name ASC LIMIT %d';
+        $sql      = "SELECT location_id, location_name, location_address, location_town, location_state, location_postcode, location_country FROM {$table} WHERE (" . implode( ' OR ', $clauses ) . ') ORDER BY location_name ASC LIMIT %d';
         $params[] = absint( $limit );
-
-        $rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
+        $rows     = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
         if ( empty( $rows ) ) {
             return array();
         }
-
         $suggestions = array();
         foreach ( $rows as $row ) {
             $suggestions[] = array(
@@ -289,32 +271,15 @@ final class GI_Candidate_Review {
                 'source'   => 'em_locations_table',
             );
         }
-
         return $suggestions;
     }
 
-    /**
-     * Fallback for installs where EM locations are represented as location posts.
-     *
-     * @param array<string,string> $candidate Candidate location values.
-     * @param int $limit Max rows.
-     * @return array<int,array<string,string>>
-     */
     private static function suggestions_from_location_posts( array $candidate, $limit ) {
         $query = trim( implode( ' ', array_filter( array( $candidate['name'], $candidate['address'], $candidate['city'], $candidate['postcode'] ) ) ) );
         if ( '' === $query ) {
             return array();
         }
-
-        $posts = get_posts(
-            array(
-                'post_type'      => 'location',
-                'post_status'    => array( 'publish', 'draft', 'private' ),
-                'posts_per_page' => absint( $limit ),
-                's'              => $query,
-            )
-        );
-
+        $posts       = get_posts( array( 'post_type' => 'location', 'post_status' => array( 'publish', 'draft', 'private' ), 'posts_per_page' => absint( $limit ), 's' => $query ) );
         $suggestions = array();
         foreach ( $posts as $post ) {
             $suggestions[] = array(
@@ -329,17 +294,11 @@ final class GI_Candidate_Review {
                 'source'   => 'location_post_type',
             );
         }
-
         return $suggestions;
     }
 
-    /**
-     * @param array<string,string> $candidate Candidate values.
-     * @param array<string,string> $match Match values.
-     */
     private static function match_reason( array $candidate, array $match ) {
         $reasons = array();
-
         if ( self::same_text( $candidate['name'], $match['name'] ) ) {
             $reasons[] = __( 'same name', 'great-imports' );
         }
@@ -352,18 +311,12 @@ final class GI_Candidate_Review {
         if ( self::same_text( $candidate['city'], $match['city'] ) ) {
             $reasons[] = __( 'same city', 'great-imports' );
         }
-
-        if ( empty( $reasons ) ) {
-            return __( 'possible partial match', 'great-imports' );
-        }
-
-        return implode( ', ', $reasons );
+        return empty( $reasons ) ? __( 'possible partial match', 'great-imports' ) : implode( ', ', $reasons );
     }
 
     private static function same_text( $a, $b ) {
         $a = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $a ) ) );
         $b = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $b ) ) );
-
         return '' !== $a && '' !== $b && $a === $b;
     }
 }
