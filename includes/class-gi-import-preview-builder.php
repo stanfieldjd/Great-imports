@@ -20,21 +20,22 @@ final class GI_Import_Preview_Builder {
         $post_id = isset( $candidate->ID ) ? (int) $candidate->ID : 0;
         $bundle  = $this->evidence_bundle_for_candidate( $post_id );
 
-        $start = $this->split_local_datetime( $this->meta( $post_id, 'start_date' ) );
-        $end   = $this->split_local_datetime( $this->meta( $post_id, 'end_date' ) );
+        $title = $this->candidate_value( $post_id, 'title', '', get_the_title( $candidate ) );
+        $start = $this->split_local_datetime( $this->candidate_value( $post_id, 'start_date' ) );
+        $end   = $this->split_local_datetime( $this->candidate_value( $post_id, 'end_date' ) );
 
         $ticket_classes = $this->ticket_classes_from_bundle( $bundle );
         $faqs           = $this->faqs_from_bundle( $bundle );
         $description    = $this->assemble_description_html( $candidate, $post_id, $start, $end, $ticket_classes, $faqs );
-        $stage_room     = $this->meta( $post_id, 'stage_room' );
+        $stage_room     = $this->candidate_value( $post_id, 'stage_room' );
 
         return array(
             'public_event_fields' => array(
-                'title'     => get_the_title( $candidate ),
-                'start'     => $start,
-                'end'       => $end,
-                'timezone'  => $this->meta( $post_id, 'timezone' ),
-                'status'    => __( 'Preview only — no Events Manager event will be saved from this screen.', 'great-imports' ),
+                'title'    => $title,
+                'start'    => $start,
+                'end'      => $end,
+                'timezone' => $this->candidate_value( $post_id, 'timezone' ),
+                'status'   => __( 'Preview only — no Events Manager event will be saved from this screen.', 'great-imports' ),
             ),
             'time_handling'       => array(
                 'overall_window' => $this->overall_window_label( $start, $end ),
@@ -43,18 +44,19 @@ final class GI_Import_Preview_Builder {
                 'note'           => __( 'Overall event time is available. No separate source-backed set times or Events Manager timeslots have been extracted for this candidate.', 'great-imports' ),
             ),
             'location_fields'     => array(
-                'location_name'     => $this->meta( $post_id, 'location_name' ),
-                'location_address'  => $this->meta( $post_id, 'location_address_1' ),
-                'location_address2' => $this->meta( $post_id, 'location_address_2' ),
-                'location_town'     => $this->meta( $post_id, 'location_city' ),
-                'location_state'    => $this->meta( $post_id, 'location_state' ),
-                'location_postcode' => $this->meta( $post_id, 'location_postal_code' ),
-                'location_country'  => $this->meta( $post_id, 'location_country' ),
+                'location_name'     => $this->candidate_value( $post_id, 'location_name' ),
+                'location_address'  => $this->candidate_value( $post_id, 'location_address_1' ),
+                'location_address2' => $this->candidate_value( $post_id, 'location_address_2' ),
+                'location_town'     => $this->candidate_value( $post_id, 'location_city' ),
+                'location_state'    => $this->candidate_value( $post_id, 'location_state' ),
+                'location_postcode' => $this->candidate_value( $post_id, 'location_postal_code' ),
+                'location_country'  => $this->candidate_value( $post_id, 'location_country' ),
                 'stage_room'        => $stage_room,
-                'handoff_note'      => __( 'Great Imports fills address fields only. Events Manager handles save/update/location ID/map behavior.', 'great-imports' ),
+                'handoff_note'      => __( 'Great Imports fills reviewed address fields only. Events Manager handles save/update/location ID/map behavior when an import step is later approved.', 'great-imports' ),
             ),
+            'reviewer_decisions'  => $this->reviewer_decisions( $post_id ),
             'images'              => array(
-                'primary_image_url' => $this->meta( $post_id, 'image_url' ),
+                'primary_image_url' => $this->candidate_value( $post_id, 'image_url' ),
                 'planned_action'    => __( 'Actual event image should be downloaded into the WordPress Media Library and assigned as the featured image when import is later approved.', 'great-imports' ),
                 'excluded'          => array(
                     __( 'tracking pixels', 'great-imports' ),
@@ -65,9 +67,9 @@ final class GI_Import_Preview_Builder {
             ),
             'description_html'    => $description,
             'ticketing'           => array(
-                'ticket_url'     => $this->meta( $post_id, 'ticket_url' ),
-                'price'          => $this->meta( $post_id, 'price' ),
-                'currency'       => $this->meta( $post_id, 'price_currency' ),
+                'ticket_url'     => $this->candidate_value( $post_id, 'ticket_url' ),
+                'price'          => $this->candidate_value( $post_id, 'price' ),
+                'currency'       => $this->candidate_value( $post_id, 'price_currency' ),
                 'ticket_classes' => $ticket_classes,
                 'public_rule'    => __( 'Eventbrite may appear publicly only as the purchase-ticket URL.', 'great-imports' ),
             ),
@@ -87,12 +89,14 @@ final class GI_Import_Preview_Builder {
                 'evidence_bundle_id'      => $this->meta( $post_id, 'evidence_bundle_id' ),
                 'evidence_capture_run_id' => $this->meta( $post_id, 'evidence_capture_run_id' ),
                 'fetch_method'            => $this->meta( $post_id, 'fetch_method' ),
+                'reviewed_at'             => $this->review_meta( $post_id, 'reviewed_at' ),
+                'reviewed_by_user_id'     => $this->review_meta( $post_id, 'reviewed_by' ),
             ),
             'excluded_public_data' => array(
                 __( 'latitude', 'great-imports' ),
                 __( 'longitude', 'great-imports' ),
                 __( 'geocoding', 'great-imports' ),
-                __( 'manual Events Manager location ID assignment', 'great-imports' ),
+                __( 'manual Events Manager location ID assignment unless reviewer selected an existing EM location for later import', 'great-imports' ),
                 __( 'raw scripts', 'great-imports' ),
                 __( 'raw cookies/headers', 'great-imports' ),
                 __( 'Eventbrite source attribution except ticket purchase URL', 'great-imports' ),
@@ -116,7 +120,7 @@ final class GI_Import_Preview_Builder {
             $good_to_know[] = sprintf( __( 'Duration: %s', 'great-imports' ), $duration );
         }
 
-        if ( '' !== $this->meta( $post_id, 'location_name' ) ) {
+        if ( '' !== $this->candidate_value( $post_id, 'location_name' ) ) {
             $good_to_know[] = __( 'In person', 'great-imports' );
         }
 
@@ -137,9 +141,9 @@ final class GI_Import_Preview_Builder {
     }
 
     private function ticket_section_html( $post_id, array $ticket_classes ) {
-        $ticket_url = $this->meta( $post_id, 'ticket_url' );
-        $price      = $this->meta( $post_id, 'price' );
-        $currency   = $this->meta( $post_id, 'price_currency' );
+        $ticket_url = $this->candidate_value( $post_id, 'ticket_url' );
+        $price      = $this->candidate_value( $post_id, 'price' );
+        $currency   = $this->candidate_value( $post_id, 'price_currency' );
 
         if ( '' === $ticket_url && '' === $price && empty( $ticket_classes ) ) {
             return '';
@@ -177,16 +181,16 @@ final class GI_Import_Preview_Builder {
     }
 
     private function venue_section_html( $post_id ) {
-        $name    = $this->meta( $post_id, 'location_name' );
+        $name    = $this->candidate_value( $post_id, 'location_name' );
         $address = array_filter(
             array(
-                $this->meta( $post_id, 'location_address_1' ),
-                $this->meta( $post_id, 'location_address_2' ),
-                trim( $this->meta( $post_id, 'location_city' ) . ', ' . $this->meta( $post_id, 'location_state' ) . ' ' . $this->meta( $post_id, 'location_postal_code' ) ),
-                $this->meta( $post_id, 'location_country' ),
+                $this->candidate_value( $post_id, 'location_address_1' ),
+                $this->candidate_value( $post_id, 'location_address_2' ),
+                trim( $this->candidate_value( $post_id, 'location_city' ) . ', ' . $this->candidate_value( $post_id, 'location_state' ) . ' ' . $this->candidate_value( $post_id, 'location_postal_code' ) ),
+                $this->candidate_value( $post_id, 'location_country' ),
             )
         );
-        $stage   = $this->meta( $post_id, 'stage_room' );
+        $stage   = $this->candidate_value( $post_id, 'stage_room' );
 
         if ( '' === $name && empty( $address ) && '' === $stage ) {
             return '';
@@ -228,6 +232,45 @@ final class GI_Import_Preview_Builder {
         }
 
         return $html;
+    }
+
+    private function reviewer_decisions( $post_id ) {
+        $review_status        = $this->candidate_value( $post_id, 'review_status', 'candidate_status', 'needs_review' );
+        $location_decision    = $this->review_meta( $post_id, 'location_decision' );
+        $address_verification = $this->review_meta( $post_id, 'address_verification' );
+        $em_location_id       = $this->review_meta( $post_id, 'em_location_id' );
+
+        return array(
+            'review_status'              => $review_status,
+            'review_status_label'        => $this->option_label( GI_Candidate_Review::review_status_options(), $review_status ),
+            'location_decision'          => $location_decision,
+            'location_decision_label'    => $this->option_label( GI_Candidate_Review::location_decision_options(), $location_decision ),
+            'address_verification'       => $address_verification,
+            'address_verification_label' => $this->option_label( GI_Candidate_Review::address_verification_options(), $address_verification ),
+            'em_location_id'             => $em_location_id,
+            'reviewer_notes'             => $this->review_meta( $post_id, 'reviewer_notes' ),
+            'source_location_fields'     => array(
+                'location_name'     => $this->meta( $post_id, 'location_name' ),
+                'location_address'  => $this->meta( $post_id, 'location_address_1' ),
+                'location_town'     => $this->meta( $post_id, 'location_city' ),
+                'location_state'    => $this->meta( $post_id, 'location_state' ),
+                'location_postcode' => $this->meta( $post_id, 'location_postal_code' ),
+            ),
+            'reviewed_location_fields'   => array(
+                'location_name'     => $this->candidate_value( $post_id, 'location_name' ),
+                'location_address'  => $this->candidate_value( $post_id, 'location_address_1' ),
+                'location_town'     => $this->candidate_value( $post_id, 'location_city' ),
+                'location_state'    => $this->candidate_value( $post_id, 'location_state' ),
+                'location_postcode' => $this->candidate_value( $post_id, 'location_postal_code' ),
+            ),
+            'note'                       => __( 'Reviewer overrides affect the preview only. Raw source evidence remains unchanged.', 'great-imports' ),
+        );
+    }
+
+    private function option_label( array $options, $key ) {
+        $key = sanitize_key( (string) $key );
+
+        return isset( $options[ $key ] ) ? $options[ $key ] : $key;
     }
 
     private function ticket_classes_from_bundle( array $bundle ) {
@@ -324,6 +367,27 @@ final class GI_Import_Preview_Builder {
 
         $bundle = get_post_meta( $evidence_id, '_gi_evidence_bundle', true );
         return is_array( $bundle ) ? $bundle : array();
+    }
+
+    private function candidate_value( $post_id, $key, $source_key = '', $default = '' ) {
+        if ( class_exists( 'GI_Candidate_Review' ) ) {
+            return GI_Candidate_Review::value( $post_id, $key, $source_key, $default );
+        }
+
+        $fallback_key = '' !== $source_key ? $source_key : $key;
+        $value        = $this->meta( $post_id, $fallback_key );
+
+        return '' !== $value ? $value : sanitize_text_field( (string) $default );
+    }
+
+    private function review_meta( $post_id, $key ) {
+        $value = get_post_meta( $post_id, '_gi_review_' . sanitize_key( $key ), true );
+
+        if ( is_array( $value ) || is_object( $value ) ) {
+            return '';
+        }
+
+        return sanitize_text_field( (string) $value );
     }
 
     private function meta( $post_id, $key ) {
