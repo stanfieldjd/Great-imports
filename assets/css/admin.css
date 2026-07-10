@@ -23,6 +23,25 @@
     margin: 0 8px 0 0;
 }
 
+.gi-danger-card {
+    border-left: 4px solid #d63638;
+}
+
+.gi-danger-card h2 {
+    color: #8a2424;
+}
+
+.gi-danger-card .button.delete {
+    border-color: #d63638;
+    color: #d63638;
+}
+
+.gi-danger-card .button.delete:hover,
+.gi-danger-card .button.delete:focus {
+    border-color: #8a2424;
+    color: #8a2424;
+}
+
 .gi-preview-row td {
     padding: 0 12px 12px;
 }
