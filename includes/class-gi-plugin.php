@@ -22,6 +22,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.ph
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-import-preview-builder.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-page-display-report-builder.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-source-coverage-audit-builder.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-data-cleaner.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
@@ -50,12 +51,12 @@ final class GI_Plugin {
         add_action( 'init', array( 'GI_Post_Types', 'register' ) );
 
         if ( is_admin() ) {
-            $api_client      = new GI_Eventbrite_API_Client();
-            $evidence_store  = new GI_Evidence_Store();
-            $preview_builder = new GI_Import_Preview_Builder();
-            $display_builder = new GI_Page_Display_Report_Builder();
+            $api_client       = new GI_Eventbrite_API_Client();
+            $evidence_store   = new GI_Evidence_Store();
+            $preview_builder  = new GI_Import_Preview_Builder();
+            $display_builder  = new GI_Page_Display_Report_Builder();
             $coverage_auditor = new GI_Source_Coverage_Audit_Builder();
-            $admin           = new GI_Admin(
+            $admin            = new GI_Admin(
                 new GI_Eventbrite_Importer(
                     new GI_Url_Validator(),
                     new GI_Http_Client(),
