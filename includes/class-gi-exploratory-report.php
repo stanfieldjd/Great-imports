@@ -22,11 +22,15 @@ final class GI_Exploratory_Report {
     /** @var GI_Page_Display_Report_Builder */
     private $display_builder;
 
-    public function __construct( GI_Eventbrite_API_Client $api_client, GI_Evidence_Store $evidence_store, GI_Import_Preview_Builder $preview_builder, GI_Page_Display_Report_Builder $display_builder ) {
-        $this->api_client      = $api_client;
-        $this->evidence_store  = $evidence_store;
-        $this->preview_builder = $preview_builder;
-        $this->display_builder = $display_builder;
+    /** @var GI_Source_Coverage_Audit_Builder */
+    private $coverage_auditor;
+
+    public function __construct( GI_Eventbrite_API_Client $api_client, GI_Evidence_Store $evidence_store, GI_Import_Preview_Builder $preview_builder, GI_Page_Display_Report_Builder $display_builder, GI_Source_Coverage_Audit_Builder $coverage_auditor ) {
+        $this->api_client       = $api_client;
+        $this->evidence_store   = $evidence_store;
+        $this->preview_builder  = $preview_builder;
+        $this->display_builder  = $display_builder;
+        $this->coverage_auditor = $coverage_auditor;
     }
 
     /**
@@ -56,6 +60,7 @@ final class GI_Exploratory_Report {
         $candidates           = $this->format_candidates( $candidate_posts );
         $source_page_displays = $this->get_source_page_display_reports( $candidate_posts );
         $import_previews      = $this->get_import_previews( $candidate_posts );
+        $coverage_audits      = $this->get_coverage_audits( $candidate_posts, $source_page_displays, $import_previews );
         $evidence             = $this->get_evidence_records();
 
         return array(
@@ -67,6 +72,7 @@ final class GI_Exploratory_Report {
                 'candidate_role'      => 'Candidate data is a downstream interpretation of evidence, not the evidence source.',
                 'display_report_role' => 'Source page display reports show screenshot-style page evidence extracted from captured source evidence.',
                 'preview_role'        => 'Import previews show proposed public Events Manager fields and exclusions. They do not save Events Manager events.',
+                'coverage_audit_role' => 'Coverage audits list captured, missing-required, missing-optional, excluded, and browser-rendering-gap areas so source information is not silently dropped.',
             ),
             'report_hygiene'              => array(
                 'secret_values_exported'                => false,
@@ -89,7 +95,8 @@ final class GI_Exploratory_Report {
                 'eventbrite_private_token_configured' => $this->api_client->has_private_token(),
                 'eventbrite_private_token_value'      => $this->api_client->has_private_token() ? '[configured-not-exported]' : '[not-configured]',
             ),
-            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays ),
+            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays, $coverage_audits ),
+            'source_coverage_audits'      => $coverage_audits,
             'source_page_display_reports' => $source_page_displays,
             'import_previews'             => $import_previews,
             'evidence_records'            => $evidence,
@@ -203,6 +210,47 @@ final class GI_Exploratory_Report {
     }
 
     /**
+     * Build source coverage audits by candidate ID.
+     *
+     * @param WP_Post[] $posts Candidate posts.
+     * @param array<int,array<string,mixed>> $display_reports Display reports.
+     * @param array<int,array<string,mixed>> $previews Import previews.
+     * @return array<int,array<string,mixed>>
+     */
+    private function get_coverage_audits( array $posts, array $display_reports, array $previews ) {
+        $display_by_id = $this->index_by_candidate_id( $display_reports );
+        $preview_by_id = $this->index_by_candidate_id( $previews );
+        $audits        = array();
+
+        foreach ( $posts as $post ) {
+            $post_id = (int) $post->ID;
+            $display = isset( $display_by_id[ $post_id ] ) && is_array( $display_by_id[ $post_id ] ) ? $display_by_id[ $post_id ] : array();
+            $preview = isset( $preview_by_id[ $post_id ] ) && is_array( $preview_by_id[ $post_id ] ) ? $preview_by_id[ $post_id ] : array();
+            $audits[] = $this->sanitize_report_value( 'source_coverage_audit', $this->coverage_auditor->build_for_candidate( $post, $display, $preview ) );
+        }
+
+        return $audits;
+    }
+
+    /**
+     * Index report rows by candidate_post_id.
+     *
+     * @param array<int,array<string,mixed>> $items Items.
+     * @return array<int,array<string,mixed>>
+     */
+    private function index_by_candidate_id( array $items ) {
+        $indexed = array();
+        foreach ( $items as $item ) {
+            if ( ! is_array( $item ) || empty( $item['candidate_post_id'] ) ) {
+                continue;
+            }
+            $indexed[ (int) $item['candidate_post_id'] ] = $item;
+        }
+
+        return $indexed;
+    }
+
+    /**
      * Read all captured evidence records.
      *
      * @return array<int,array<string,mixed>>
@@ -254,31 +302,38 @@ final class GI_Exploratory_Report {
     }
 
     /**
-     * Summarize candidates, evidence records, previews, and source-page display reports.
+     * Summarize candidates, evidence records, previews, display reports, and coverage audits.
      *
      * @param array<int,array<string,mixed>> $candidates Candidates.
      * @param array<int,array<string,mixed>> $evidence Evidence records.
      * @param array<int,array<string,mixed>> $previews Import previews.
      * @param array<int,array<string,mixed>> $display_reports Display reports.
+     * @param array<int,array<string,mixed>> $coverage_audits Coverage audits.
      * @return array<string,mixed>
      */
-    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports ) {
+    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports, array $coverage_audits ) {
         $summary = array(
-            'total_candidates'                 => count( $candidates ),
-            'total_evidence_records'           => count( $evidence ),
-            'total_import_previews'            => count( $previews ),
-            'total_source_page_display_reports'=> count( $display_reports ),
-            'candidate_by_status'              => array(),
-            'candidate_by_source_type'         => array(),
-            'candidate_by_fetch_method'        => array(),
-            'evidence_items_total'             => 0,
-            'evidence_item_labels'             => array(),
-            'preview_exclusion_labels'         => array(),
-            'preview_stage_room_detected'      => 0,
-            'preview_timeslots_detected'       => 0,
-            'display_visible_text_lines_total' => 0,
-            'display_faq_items_total'          => 0,
-            'display_related_markers_total'    => 0,
+            'total_candidates'                    => count( $candidates ),
+            'total_evidence_records'              => count( $evidence ),
+            'total_import_previews'               => count( $previews ),
+            'total_source_page_display_reports'   => count( $display_reports ),
+            'total_source_coverage_audits'        => count( $coverage_audits ),
+            'candidate_by_status'                 => array(),
+            'candidate_by_source_type'            => array(),
+            'candidate_by_fetch_method'           => array(),
+            'evidence_items_total'                => 0,
+            'evidence_item_labels'                => array(),
+            'preview_exclusion_labels'            => array(),
+            'preview_stage_room_detected'         => 0,
+            'preview_timeslots_detected'          => 0,
+            'display_visible_text_lines_total'    => 0,
+            'display_faq_items_total'             => 0,
+            'display_related_markers_total'       => 0,
+            'coverage_missing_required_total'     => 0,
+            'coverage_missing_optional_total'     => 0,
+            'coverage_import_readiness'           => array(),
+            'coverage_missing_required_sections'  => array(),
+            'coverage_missing_optional_sections'  => array(),
         );
 
         foreach ( $candidates as $candidate ) {
@@ -335,11 +390,41 @@ final class GI_Exploratory_Report {
             }
         }
 
+        foreach ( $coverage_audits as $audit ) {
+            $coverage_summary = isset( $audit['coverage_summary'] ) && is_array( $audit['coverage_summary'] ) ? $audit['coverage_summary'] : array();
+            $summary['coverage_missing_required_total'] += isset( $coverage_summary['missing_required_count'] ) ? (int) $coverage_summary['missing_required_count'] : 0;
+            $summary['coverage_missing_optional_total'] += isset( $coverage_summary['missing_optional_count'] ) ? (int) $coverage_summary['missing_optional_count'] : 0;
+
+            $readiness = isset( $coverage_summary['import_readiness'] ) ? (string) $coverage_summary['import_readiness'] : '[missing]';
+            $summary['coverage_import_readiness'][ $readiness ] = isset( $summary['coverage_import_readiness'][ $readiness ] ) ? $summary['coverage_import_readiness'][ $readiness ] + 1 : 1;
+
+            $required = isset( $coverage_summary['missing_required_sections'] ) && is_array( $coverage_summary['missing_required_sections'] ) ? $coverage_summary['missing_required_sections'] : array();
+            foreach ( $required as $section ) {
+                if ( is_array( $section ) || is_object( $section ) ) {
+                    continue;
+                }
+                $section = (string) $section;
+                $summary['coverage_missing_required_sections'][ $section ] = isset( $summary['coverage_missing_required_sections'][ $section ] ) ? $summary['coverage_missing_required_sections'][ $section ] + 1 : 1;
+            }
+
+            $optional = isset( $coverage_summary['missing_optional_sections'] ) && is_array( $coverage_summary['missing_optional_sections'] ) ? $coverage_summary['missing_optional_sections'] : array();
+            foreach ( $optional as $section ) {
+                if ( is_array( $section ) || is_object( $section ) ) {
+                    continue;
+                }
+                $section = (string) $section;
+                $summary['coverage_missing_optional_sections'][ $section ] = isset( $summary['coverage_missing_optional_sections'][ $section ] ) ? $summary['coverage_missing_optional_sections'][ $section ] + 1 : 1;
+            }
+        }
+
         ksort( $summary['candidate_by_status'] );
         ksort( $summary['candidate_by_source_type'] );
         ksort( $summary['candidate_by_fetch_method'] );
         ksort( $summary['evidence_item_labels'] );
         ksort( $summary['preview_exclusion_labels'] );
+        ksort( $summary['coverage_import_readiness'] );
+        ksort( $summary['coverage_missing_required_sections'] );
+        ksort( $summary['coverage_missing_optional_sections'] );
 
         return $summary;
     }
