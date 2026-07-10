@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.10
+Stable tag: 0.2.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,17 +13,25 @@ Full evidence-first Eventbrite importer with candidate review editing, manual cl
 
 Great Imports collects Eventbrite evidence into internal review candidates before any Events Manager save. The current workflow is review/dry-run only: it does not create Events Manager events or locations yet.
 
-The Recent Review Candidates table opens a single Review Candidate / Dry Run screen. Event, location, tickets, description, image, and review decision are edited in separate sections, each with its own save button. Date and time use browser date/time controls instead of raw datetime text fields.
+The Recent Event Candidates table uses a WordPress-style list view. Opening a candidate shows a slim Event Candidate / Dry Run screen with field-level editing for event, location, description, and image values. Date and time use browser date/time controls instead of raw datetime text fields.
 
-The review screen values are the dry-run values intended for a later Events Manager handoff. Source/debug details remain behind an Advanced section.
+Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
-Great Imports does not geocode, does not transfer latitude/longitude, and does not assign Events Manager location IDs automatically. It prepares reviewed address fields only; Events Manager owns saving, updating, mapping, and location ID behavior.
+Great Imports does not geocode or transfer latitude/longitude. A matched Events Manager location can be selected from the Location area for a later handoff; Events Manager still owns saving, updating, mapping, and location ID behavior.
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.11 =
+* Replaced bulky section-wide candidate editing with slimmer field-level edit rows.
+* Removed review status, review decision, address verification, and reviewer notes from the normal candidate UI.
+* Moved the Events Manager location match dropdown into the Location area with the address fields.
+* Made ticket URL, price, currency, and ticket classes read-only source facts.
+* Rendered the description as readable content in the normal UI instead of showing raw HTML.
+* Kept source/debug evidence collapsed under Advanced.
 
 = 0.2.10 =
 * Merged candidate review and dry run into one simplified review screen.
@@ -60,30 +68,39 @@ This version does not schedule recurring imports, does not directly publish Even
 
 = 0.2.5 =
 * Added source coverage audits to the Exploratory Report.
+* Added source page display reports with visible-text and screenshot-section style breakdowns.
+* Added structured comparison sections for captured, missing optional, missing required, excluded, and browser-rendering-gap data.
+* Fixed report-download redirects so failed report downloads no longer create unexpected admin-page output.
 
 = 0.2.4 =
-* Added source-page display reports to the Exploratory Report for screenshot-style review.
+* Captures the public Eventbrite event page HTML before API normalization.
+* Adds a source-page display report section to the exploratory report.
+* Reports visible page text, screenshot-style sections, FAQ items, related-event markers, image evidence, and browser-rendering gaps.
 
 = 0.2.3 =
-* Added import-preview sections to the Exploratory Report.
+* Adds review-only import previews for captured candidates.
+* Shows proposed Events Manager public fields, date/time handling, location/address fields, ticketing, images, related events, internal tracking, and excluded public data.
+* Does not save Events Manager events or locations.
 
 = 0.2.2 =
-* Added import preview / dry run for review candidates.
+* Adds exploratory report download for current Great Imports data.
+* Reports environment, configured-token status, candidate counts, evidence counts, and tracked metadata.
+* Redacts private token values from report output.
 
 = 0.2.1 =
-* Fixed uninstall cleanup so Great Imports-owned data is always removed when the plugin is deleted.
+* Fixes admin activation by loading the Eventbrite API normalizer before the importer.
 
 = 0.2.0 =
-* Added full-view-first evidence capture foundation.
+* Eventbrite one-time evidence collection.
+* Private token setting.
+* Candidate/evidence custom post types.
+* Full-view-first evidence capture.
+* Review/dry-run only. No Events Manager save yet.
 
-= 0.1.3 =
-* Expanded exploratory API capture beyond selected candidate fields.
+== Installation ==
 
-= 0.1.2 =
-* Added Exploratory Report download.
+Upload the ZIP through WordPress Plugins > Add New > Upload Plugin, then activate Great Imports.
 
-= 0.1.1 =
-* Added masked Eventbrite private token setting.
+== Uninstall ==
 
-= 0.1.0 =
-* Initial modular WordPress plugin structure.
+Uninstall removes Great Imports-owned review candidates, evidence records, `_gi_` metadata, plugin options, private token storage, and plugin transients. It does not remove Events Manager data, tickets, media, categories, tags, or venue records.
