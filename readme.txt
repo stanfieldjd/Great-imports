@@ -3,11 +3,11 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.7
+Stable tag: 0.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Full evidence-first Eventbrite importer with manual cleanup, review candidates, source-page display reports, coverage audits, import previews, and review reports.
+Full evidence-first Eventbrite importer with candidate review editing, manual cleanup, source-page display reports, coverage audits, import previews, and review reports.
 
 == Description ==
 
@@ -15,19 +15,21 @@ Great Imports uses a full-view-first evidence capture model. It accepts a full E
 
 When an Eventbrite private token is configured in WordPress admin, Great Imports captures Eventbrite API evidence and public page evidence. It also captures the public Eventbrite page response and broad HTML-derived evidence such as meta tags, title tags, links, images, canonical URLs, JSON-LD blocks, script blocks, visible initial-page text lines, and display section markers.
 
-The Recent Review Candidates table includes an import preview / dry run. The preview shows what would become public Events Manager event fields, location/address fields, image handling, ticket handling, FAQ dropdowns, internal-only source tracking, and excluded public data. The preview does not save Events Manager events.
+The Recent Review Candidates table includes a candidate review editor and an import preview / dry run. The review editor lets an administrator edit candidate title, date/time, timezone, location name, address fields, stage/room, ticket URL, price, review status, reviewer notes, location decision, address verification, and a selected existing Events Manager location suggestion. Review edits are saved as Great Imports reviewer overrides; raw source evidence is not rewritten.
+
+The import preview shows what would become public Events Manager event fields, location/address fields, image handling, ticket handling, FAQ dropdowns, internal-only source tracking, reviewer decisions, and excluded public data. The preview does not save Events Manager events.
 
 The Exploratory Report includes source-page display reports so screenshot-visible areas can be reviewed alongside evidence and import preview data. The display report includes title, date/time, ticketing, overview, good-to-know, location, organizer, FAQ, image, related-section marker, visible-text, and browser-rendering-gap sections.
 
-The Exploratory Report also includes import-preview sections so the report shows proposed public Events Manager fields, proposed public description, location/address-only handoff, image handling, time/timeslot handling, stage/room handling, internal source tracking, and excluded public/import fields.
+The Exploratory Report also includes import-preview sections so the report shows proposed public Events Manager fields, proposed public description, location/address-only handoff, image handling, time/timeslot handling, stage/room handling, reviewer decisions, internal source tracking, and excluded public/import fields.
 
 The Exploratory Report now includes source coverage audits. Coverage audits list captured sections, missing required sections, missing optional sections, excluded fields, browser-rendering gaps, and import-readiness status so source information does not disappear silently.
 
-Manual Data Removal is available in the Great Imports admin page. It removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
+Manual Data Removal is available at the bottom of the Great Imports admin page inside a collapsed Danger Zone. It removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
 Report hygiene redacts secret, cookie, rate-limit, Eventbrite internal header, and structured coordinate fields by field name. Structured latitude/longitude fields are not exported for review/import reporting because Great Imports does not use them.
 
-Great Imports does not geocode, does not transfer latitude/longitude, and does not assign Events Manager location IDs. It prepares address fields only; Events Manager owns saving, updating, mapping, and location ID behavior.
+Great Imports does not geocode, does not transfer latitude/longitude, and does not assign Events Manager location IDs automatically. It prepares reviewed address fields only; Events Manager owns saving, updating, mapping, and location ID behavior. Selecting an existing EM location in the review editor records a reviewer decision for a later import step; it does not create or update an EM event/location.
 
 Eventbrite may appear publicly only as the ticket purchase URL. Other Eventbrite source information remains internal Great Imports evidence/source tracking.
 
@@ -38,6 +40,15 @@ Uninstall and Manual Data Removal use the same Great Imports cleanup path. They 
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.8 =
+* Added a candidate review editor under each review candidate.
+* Added editable reviewer override fields for event title, start/end date and time, timezone, location name, address fields, stage/room, ticket URL, price, currency, status, and reviewer notes.
+* Added location decision and address verification controls.
+* Added read-only Events Manager location suggestions and an existing EM location selector for later import decisions.
+* Import previews now prefer reviewer overrides while preserving raw source evidence separately.
+* Added reviewer decision details to import previews and reports.
+* Moved Manual Data Removal to a collapsed bottom Danger Zone.
 
 = 0.2.7 =
 * Rebuilt package with the visible-text helper methods included in `GI_HTML_Evidence_Extractor`.
