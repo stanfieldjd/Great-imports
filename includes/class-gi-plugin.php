@@ -16,6 +16,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-http-evidence-client.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-html-evidence-extractor.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-jsonld-parser.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-store.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-review.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-evidence-store.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-client.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.php';
