@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.6
+Stable tag: 0.2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,6 +38,11 @@ Uninstall and Manual Data Removal use the same Great Imports cleanup path. They 
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.7 =
+* Rebuilt package with the visible-text helper methods included in `GI_HTML_Evidence_Extractor`.
+* Fixes the fatal error from `extract_visible_text_lines()` during evidence collection.
+* Keeps the 0.2.6 manual cleanup behavior unchanged.
 
 = 0.2.6 =
 * Added Manual Data Removal to the Great Imports admin page.
