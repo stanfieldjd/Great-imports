@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.26
+Stable tag: 0.2.27
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.27 =
+* Connected the validated Events Manager payload builder to every candidate import preview and exploratory report.
+* Supersedes 0.2.26, where the builder method existed but its return value was not attached to the preview array.
+* No live Events Manager save, ticket creation, image transfer, scheduling, cleanup, or raw evidence changes.
 
 = 0.2.26 =
 * Added a validated Events Manager transfer payload to every candidate import preview and exploratory report.
