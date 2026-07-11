@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.18
+Stable tag: 0.2.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.19 =
+* Moved the existing Eventbrite API Settings, Exploratory Report, and Manual Data Removal controls above the URL collection and candidate list.
+* Added a read-only Current Version item sourced from the installed Great Imports version constant.
+* Arranged the four top utility/status items in a responsive row without duplicating or hiding controls.
+* No control actions, parser, evidence capture, candidate storage, matching, report, ticket, scheduling, cleanup, or Events Manager behavior changes.
 
 = 0.2.18 =
 * Added the complete stored candidate address beneath the venue name in the candidate list.
