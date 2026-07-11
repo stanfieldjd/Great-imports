@@ -150,7 +150,6 @@ final class GI_Admin {
         echo '<h1 class="wp-heading-inline">' . esc_html__( 'Great Imports', 'great-imports' ) . '</h1>';
         echo '<p class="description">' . esc_html__( 'Collect Eventbrite evidence into candidates before any Events Manager save.', 'great-imports' ) . '</p>';
         echo '</div>';
-        echo '<a class="page-title-action" href="#gi-collect-url">' . esc_html__( 'Collect URL', 'great-imports' ) . '</a>';
         echo '</div>';
         echo '<hr class="wp-header-end">';
     }
