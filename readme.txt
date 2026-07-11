@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.23
+Stable tag: 0.2.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.24 =
+* Reconciled composite fallback addresses with known city, state, ZIP, and country fields for candidate display and editing.
+* Extracts a terminal US ZIP only when the pattern is explicit and removes only comma-delimited locality suffixes supported by existing structured evidence.
+* Uses the same normalized location fields for the collapsed display, editor inputs, and Events Manager matching.
+* Preserves raw source metadata and reviewer overrides and does not write to Events Manager.
 
 = 0.2.23 =
 * Recovered the composite JSON-LD location address for display, editing, and Events Manager matching when structured street address data is absent.
