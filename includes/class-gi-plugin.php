@@ -27,6 +27,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-data-cleaner.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-list-table.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-em-importer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
 
 final class GI_Plugin {
@@ -72,7 +73,8 @@ final class GI_Plugin {
                 ),
                 $api_client,
                 new GI_Exploratory_Report( $api_client, $evidence_store, $preview_builder, $display_builder, $coverage_auditor ),
-                $preview_builder
+                $preview_builder,
+                new GI_EM_Importer( $preview_builder )
             );
             $admin->register_hooks();
         }
