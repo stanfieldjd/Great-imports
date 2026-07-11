@@ -76,6 +76,11 @@ final class GI_EM_Importer {
 
         $existing_id = absint( get_post_meta( $candidate_id, '_gi_em_location_id', true ) );
         if ( $existing_id ) {
+            $coordinate_result = $this->apply_coordinates_to_candidate_location( $existing_id, $payload );
+            if ( ! $coordinate_result['success'] ) {
+                return $coordinate_result;
+            }
+
             return array( 'success' => true, 'location_id' => $existing_id, 'created' => false );
         }
 
@@ -100,6 +105,40 @@ final class GI_EM_Importer {
         }
 
         return array( 'success' => true, 'location_id' => absint( $location->location_id ), 'created' => true );
+    }
+
+    private function apply_coordinates_to_candidate_location( $location_id, array $payload ) {
+        $latitude  = isset( $payload['location_latitude'] ) ? $this->coordinate_value( $payload['location_latitude'], 'latitude' ) : '';
+        $longitude = isset( $payload['location_longitude'] ) ? $this->coordinate_value( $payload['location_longitude'], 'longitude' ) : '';
+
+        if ( '' === $latitude || '' === $longitude ) {
+            return array( 'success' => true );
+        }
+
+        if ( function_exists( 'em_get_location' ) ) {
+            $location = em_get_location( $location_id );
+        } else {
+            $location = new EM_Location( $location_id );
+        }
+
+        if ( ! $location || empty( $location->location_id ) ) {
+            return $this->failure( __( 'Previously imported Events Manager location could not be loaded; coordinates were not changed.', 'great-imports' ) );
+        }
+
+        $current_latitude  = isset( $location->location_latitude ) ? $this->coordinate_value( $location->location_latitude, 'latitude' ) : '';
+        $current_longitude = isset( $location->location_longitude ) ? $this->coordinate_value( $location->location_longitude, 'longitude' ) : '';
+        if ( '' !== $current_latitude && '' !== $current_longitude ) {
+            return array( 'success' => true );
+        }
+
+        $location->location_latitude  = $latitude;
+        $location->location_longitude = $longitude;
+
+        if ( ! method_exists( $location, 'save' ) || ! $location->save() ) {
+            return $this->failure( $this->object_error( $location, __( 'Events Manager location coordinates could not be saved.', 'great-imports' ) ) );
+        }
+
+        return array( 'success' => true );
     }
 
     private function save_event( $candidate_id, array $payload, $location_id ) {
