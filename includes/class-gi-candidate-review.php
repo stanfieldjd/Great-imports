@@ -173,6 +173,59 @@ final class GI_Candidate_Review {
         return array_slice( $suggestions, 0, $limit );
     }
 
+    public static function all_locations() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'em_locations';
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        if ( $found === $table ) {
+            $rows = $wpdb->get_results(
+                "SELECT location_id, location_name, location_address, location_town, location_state, location_postcode, location_country FROM {$table} ORDER BY location_name ASC",
+                ARRAY_A
+            );
+
+            return array_map(
+                static function ( $row ) {
+                    return array(
+                        'id'       => isset( $row['location_id'] ) ? (string) absint( $row['location_id'] ) : '',
+                        'name'     => isset( $row['location_name'] ) ? sanitize_text_field( (string) $row['location_name'] ) : '',
+                        'address'  => isset( $row['location_address'] ) ? sanitize_text_field( (string) $row['location_address'] ) : '',
+                        'city'     => isset( $row['location_town'] ) ? sanitize_text_field( (string) $row['location_town'] ) : '',
+                        'state'    => isset( $row['location_state'] ) ? sanitize_text_field( (string) $row['location_state'] ) : '',
+                        'postcode' => isset( $row['location_postcode'] ) ? sanitize_text_field( (string) $row['location_postcode'] ) : '',
+                        'country'  => isset( $row['location_country'] ) ? sanitize_text_field( (string) $row['location_country'] ) : '',
+                    );
+                },
+                is_array( $rows ) ? $rows : array()
+            );
+        }
+
+        $posts = get_posts(
+            array(
+                'post_type'      => 'location',
+                'post_status'    => array( 'publish', 'draft', 'private' ),
+                'posts_per_page' => -1,
+                'orderby'        => 'title',
+                'order'          => 'ASC',
+            )
+        );
+
+        return array_map(
+            static function ( $post ) {
+                return array(
+                    'id'       => (string) absint( $post->ID ),
+                    'name'     => get_the_title( $post ),
+                    'address'  => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_address', true ) ),
+                    'city'     => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_town', true ) ),
+                    'state'    => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_state', true ) ),
+                    'postcode' => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_postcode', true ) ),
+                    'country'  => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_country', true ) ),
+                );
+            },
+            $posts
+        );
+    }
+
     private static function sanitize_review_value( $value, $type ) {
         if ( is_array( $value ) || is_object( $value ) ) {
             return '';
