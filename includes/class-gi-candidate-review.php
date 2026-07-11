@@ -158,23 +158,65 @@ final class GI_Candidate_Review {
     public static function location_suggestions( $candidate_id, $limit = 8 ) {
         $candidate_id = absint( $candidate_id );
         $limit        = max( 1, min( 25, absint( $limit ) ) );
-        $candidate    = array(
-            'name'     => self::value( $candidate_id, 'location_name' ),
-            'address'  => self::value( $candidate_id, 'location_address_1' ),
-            'city'     => self::value( $candidate_id, 'location_city' ),
-            'state'    => self::value( $candidate_id, 'location_state' ),
-            'postcode' => self::value( $candidate_id, 'location_postal_code' ),
-            'country'  => self::value( $candidate_id, 'location_country' ),
+        $location  = self::normalized_location_fields( $candidate_id );
+        $candidate = array(
+            'name'     => $location['name'],
+            'address'  => $location['address_1'],
+            'city'     => $location['city'],
+            'state'    => $location['state'],
+            'postcode' => $location['postcode'],
+            'country'  => $location['country'],
         );
-        if ( '' === $candidate['address'] ) {
-            $candidate['address'] = self::source_value( $candidate_id, 'location_address' );
-        }
 
         $suggestions  = self::suggestions_from_em_table( $candidate, $limit );
         if ( empty( $suggestions ) ) {
             $suggestions = self::suggestions_from_location_posts( $candidate, $limit );
         }
         return array_slice( $suggestions, 0, $limit );
+    }
+
+    public static function normalized_location_fields( $candidate_id ) {
+        $candidate_id = absint( $candidate_id );
+        $fields       = array(
+            'name'      => self::value( $candidate_id, 'location_name' ),
+            'address_1' => self::value( $candidate_id, 'location_address_1', '', self::source_value( $candidate_id, 'location_address' ) ),
+            'address_2' => self::value( $candidate_id, 'location_address_2' ),
+            'city'      => self::value( $candidate_id, 'location_city' ),
+            'state'     => self::value( $candidate_id, 'location_state' ),
+            'postcode'  => self::value( $candidate_id, 'location_postal_code' ),
+            'country'   => self::value( $candidate_id, 'location_country' ),
+        );
+
+        if ( '' === $fields['postcode'] && preg_match( '/\b(\d{5}(?:-\d{4})?)\s*$/', $fields['address_1'], $matches ) ) {
+            $fields['postcode'] = sanitize_text_field( $matches[1] );
+        }
+
+        if ( '' === $fields['state'] && ( '' === $fields['country'] || 'US' === strtoupper( $fields['country'] ) ) && preg_match( '/(?:^|,\s*)([A-Z]{2})\s+\d{5}(?:-\d{4})?\s*$/i', $fields['address_1'], $matches ) ) {
+            $fields['state'] = strtoupper( sanitize_text_field( $matches[1] ) );
+        }
+
+        $parts = array_values( array_filter( array_map( 'trim', explode( ',', $fields['address_1'] ) ), 'strlen' ) );
+        $tails = array_filter(
+            array(
+                $fields['country'],
+                trim( $fields['state'] . ' ' . $fields['postcode'] ),
+                $fields['postcode'],
+                $fields['state'],
+                $fields['city'],
+            )
+        );
+
+        foreach ( $tails as $tail ) {
+            if ( ! empty( $parts ) && self::same_text( end( $parts ), $tail ) ) {
+                array_pop( $parts );
+            }
+        }
+
+        if ( ! empty( $parts ) ) {
+            $fields['address_1'] = implode( ', ', $parts );
+        }
+
+        return $fields;
     }
 
     public static function all_locations() {
