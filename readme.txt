@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.25
+Stable tag: 0.2.26
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,13 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.26 =
+* Added a validated Events Manager transfer payload to every candidate import preview and exploratory report.
+* Payload includes normalized event dates/times, timezone provenance, assembled description, source identity, and existing/create location strategy.
+* Added required-field errors, fallback warnings, and ready_for_save without calling Events Manager save methods.
+* Ticket URL and price are explicitly description-only; no Events Manager tickets or bookings are created.
+* No live event/location save, image transfer, scheduling, cleanup, or raw evidence changes.
 
 = 0.2.25 =
 * Fixed preview date/time formatting so offset-aware source times are not shifted by the WordPress timezone a second time.
