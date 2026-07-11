@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.29
+Stable tag: 0.2.30
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,10 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.30 =
+* Supersedes 0.2.29 so the GitHub release package is created from the complete coordinate-transfer source state.
+* No behavior change from the completed coordinate-transfer patch.
 
 = 0.2.29 =
 * Captures valid source-backed venue latitude/longitude from Eventbrite API, schema.org geo, and Eventbrite page meta tags.
