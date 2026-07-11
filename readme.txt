@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.22
+Stable tag: 0.2.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.23 =
+* Recovered the composite JSON-LD location address for display, editing, and Events Manager matching when structured street address data is absent.
+* Added structured street, city, state, ZIP, and country fields to newly normalized JSON-LD candidates.
+* Preserved reviewer address overrides as the highest-priority values and did not fabricate component splits for existing composite addresses.
+* No raw evidence, Events Manager records, parser selection, report, cleanup, ticket, or scheduling behavior changes.
 
 = 0.2.22 =
 * Renamed the candidate Venue heading and Venue name editor label to Location and Location name.
