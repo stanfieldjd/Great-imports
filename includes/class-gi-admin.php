@@ -129,16 +129,17 @@ final class GI_Admin {
         $this->render_notice();
 
         echo '<div class="gi-admin-grid">';
-        echo '<main class="gi-main-column">';
-        $this->collect_panel();
-        $this->candidates_panel( $candidate_table );
-        echo '</main>';
-
         echo '<aside class="gi-utility-column" aria-label="' . esc_attr__( 'Great Imports utilities', 'great-imports' ) . '">';
+        $this->version_panel();
         $this->settings_panel();
         $this->report_panel();
         $this->manual_data_removal();
         echo '</aside>';
+
+        echo '<main class="gi-main-column">';
+        $this->collect_panel();
+        $this->candidates_panel( $candidate_table );
+        echo '</main>';
         echo '</div>';
         echo '</div>';
     }
@@ -184,6 +185,13 @@ final class GI_Admin {
         $candidate_table->display();
         echo '</form>';
         echo '</section>';
+    }
+
+    private function version_panel() {
+        echo '<div class="gi-utility-panel gi-version-panel">';
+        echo '<strong>' . esc_html__( 'Current Version', 'great-imports' ) . '</strong>';
+        echo '<em>' . esc_html( GREAT_IMPORTS_VERSION ) . '</em>';
+        echo '</div>';
     }
 
     private function settings_panel() {
