@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.14
+Stable tag: 0.2.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,7 +13,7 @@ Full evidence-first Eventbrite importer with candidate review editing, manual cl
 
 Great Imports collects Eventbrite evidence into internal review candidates before any Events Manager save. The current workflow is review/dry-run only: it does not create Events Manager events or locations yet.
 
-The Recent Event Candidates table uses a WordPress-style list view. It does not render an embedded Open Candidate / Dry Run row or hidden candidate editor content inside the list table.
+The main admin screen now puts URL collection and the Recent Event Candidates list first. Eventbrite settings, report download, and manual data removal are secondary collapsed utility panels.
 
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
@@ -24,6 +24,13 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.15 =
+* Reworked the main admin page so URL collection and Recent Event Candidates are the primary workflow.
+* Moved Eventbrite API settings, Exploratory Report download, and Manual Data Removal into secondary utility panels.
+* Kept the candidate table as a list-style screen without embedded dry-run/editor rows.
+* Replaced the prior stacked-card layout CSS with admin-screen layout CSS.
+* No parser, evidence capture, ticket handling, report generation, storage, or Events Manager import behavior changes.
 
 = 0.2.14 =
 * Removed the Open Candidate / Dry Run row and its embedded candidate editor markup from the candidate table output instead of hiding it with CSS.
