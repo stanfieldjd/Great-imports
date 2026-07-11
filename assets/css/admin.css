@@ -43,18 +43,6 @@
     max-width: 620px;
 }
 
-.gi-candidate-detail-row > td {
-    background: #fff;
-    padding: 0 10px 10px;
-}
-
-.gi-candidate-details > summary,
-.gi-advanced-details > summary {
-    cursor: pointer;
-    font-weight: 600;
-    padding: 8px 0;
-}
-
 .gi-candidate-workspace {
     max-width: 940px;
     padding: 6px 0 2px;
@@ -220,6 +208,12 @@
     padding: 0 12px;
 }
 
+.gi-advanced-details > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 0;
+}
+
 .gi-advanced-grid {
     border-top: 1px solid #dcdcde;
     display: grid;
@@ -294,7 +288,7 @@
     }
 }
 
-/* v0.2.12: bring candidates closer to the native WordPress Posts list-table visual pattern. */
+/* v0.2.13: remove embedded candidate dry-run row from visible candidate table. */
 .gi-candidates-card {
     padding: 12px;
 }
@@ -311,23 +305,14 @@
 }
 
 .gi-candidate-table th:nth-child(5),
-.gi-candidate-table td:nth-child(5) {
+.gi-candidate-table td:nth-child(5),
+.gi-candidate-detail-row,
+.gi-candidate-table .row-actions a[href^="#gi-candidate-"] {
     display: none;
 }
 
 .gi-candidate-main-row .column-primary {
     min-width: 420px;
-}
-
-.gi-candidate-main-row .column-primary::before {
-    background: #fff;
-    border: 1px solid #8c8f94;
-    content: "";
-    display: inline-block;
-    height: 16px;
-    margin-right: 8px;
-    vertical-align: text-bottom;
-    width: 16px;
 }
 
 .gi-candidate-table .row-actions {
@@ -336,40 +321,14 @@
     margin-top: 3px;
 }
 
-.gi-candidate-table .row-actions a[href^="#gi-candidate-"] {
-    font-size: 0;
-}
-
-.gi-candidate-table .row-actions a[href^="#gi-candidate-"]::after {
-    content: "Open";
-    font-size: 12px;
+.gi-candidate-table .row-actions span:first-child + span::before {
+    content: "";
 }
 
 .gi-candidate-excerpt {
     color: #3c434a;
     font-size: 12px;
     line-height: 1.45;
-    margin: 3px 0 0 28px;
-    max-width: 520px;
-}
-
-.gi-candidate-detail-row > td {
-    background: #fff;
-    padding: 0 10px 8px 42px;
-}
-
-.gi-candidate-details > summary {
-    color: #2271b1;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 400;
-    padding: 2px 0 6px;
-}
-
-.gi-candidate-details > summary::-webkit-details-marker {
-    color: #646970;
-}
-
-.gi-candidate-details[open] > summary {
-    margin-bottom: 8px;
+    margin: 3px 0 0;
+    max-width: 560px;
 }
