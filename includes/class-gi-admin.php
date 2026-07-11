@@ -30,6 +30,7 @@ final class GI_Admin {
         add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
+        add_action( 'admin_post_gi_save_candidate_field', array( $this, 'handle_save_candidate_field' ) );
     }
 
     public function register_menu() {
@@ -100,6 +101,35 @@ final class GI_Admin {
         $result = $this->importer->import_once( $url );
 
         $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], absint( $result['post_id'] ) );
+    }
+
+    public function handle_save_candidate_field() {
+        $this->guard( 'edit Great Imports candidates' );
+
+        $candidate_id = isset( $_POST['candidate_id'] ) ? absint( $_POST['candidate_id'] ) : 0;
+        check_admin_referer( 'gi_save_candidate_field_' . $candidate_id );
+
+        $group = isset( $_POST['field_group'] ) ? sanitize_key( wp_unslash( $_POST['field_group'] ) ) : '';
+        $allowed_fields = array(
+            'title'    => array( 'title' ),
+            'date'     => array( 'start_date_date', 'start_date_time', 'end_date_date', 'end_date_time' ),
+            'venue'    => array( 'location_name', 'location_address_1', 'location_address_2', 'location_city', 'location_state', 'location_postal_code', 'location_country' ),
+            'location' => array( 'em_location_id' ),
+        );
+
+        if ( ! isset( $allowed_fields[ $group ] ) ) {
+            $this->redirect_with_notice( 'error', __( 'Candidate field was not saved because the edit group was invalid.', 'great-imports' ), $candidate_id );
+        }
+
+        $data = array();
+        foreach ( $allowed_fields[ $group ] as $field ) {
+            if ( isset( $_POST[ $field ] ) ) {
+                $data[ $field ] = wp_unslash( $_POST[ $field ] );
+            }
+        }
+
+        $result = GI_Candidate_Review::save( $candidate_id, $data );
+        $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], $candidate_id );
     }
 
     public function handle_manual_data_removal() {
@@ -179,10 +209,7 @@ final class GI_Admin {
         echo '<h2 id="gi-candidates-heading">' . esc_html__( 'Recent Event Candidates', 'great-imports' ) . '</h2>';
         echo '<span class="gi-count">' . esc_html( sprintf( _n( '%s item', '%s items', $count, 'great-imports' ), number_format_i18n( $count ) ) ) . '</span>';
         echo '</div>';
-        echo '<form class="gi-candidates-form" method="get">';
-        echo '<input type="hidden" name="page" value="great-imports">';
         $candidate_table->display();
-        echo '</form>';
         echo '</section>';
     }
 
