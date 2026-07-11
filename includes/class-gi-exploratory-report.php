@@ -197,6 +197,7 @@ final class GI_Exploratory_Report {
                 'location_fields'          => $this->sanitize_report_value( 'location_fields', isset( $preview['location_fields'] ) ? $preview['location_fields'] : array() ),
                 'images'                   => $this->sanitize_report_value( 'images', isset( $preview['images'] ) ? $preview['images'] : array() ),
                 'ticketing'                => $this->sanitize_report_value( 'ticketing', isset( $preview['ticketing'] ) ? $preview['ticketing'] : array() ),
+                'events_manager_payload'   => $this->sanitize_report_value( 'events_manager_payload', isset( $preview['events_manager_payload'] ) ? $preview['events_manager_payload'] : array() ),
                 'stage_handling'           => $this->sanitize_report_value( 'stage_handling', isset( $preview['stage_handling'] ) ? $preview['stage_handling'] : array() ),
                 'related_events'           => $this->sanitize_report_value( 'related_events', isset( $preview['related_events'] ) ? $preview['related_events'] : array() ),
                 'description_html_preview' => $this->sanitize_report_value( 'description_html_preview', isset( $preview['description_html'] ) ? $preview['description_html'] : '' ),
