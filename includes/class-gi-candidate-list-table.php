@@ -54,8 +54,9 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return array(
             'title'  => __( 'Title', 'great-imports' ),
             'date'   => __( 'Date', 'great-imports' ),
-            'venue'  => __( 'Venue', 'great-imports' ),
-            'source' => __( 'Source', 'great-imports' ),
+            'venue'             => __( 'Venue', 'great-imports' ),
+            'matching_location' => __( 'Matching Location', 'great-imports' ),
+            'source'            => __( 'Source', 'great-imports' ),
         );
     }
 
@@ -93,6 +94,39 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return $output . $this->row_actions( $actions );
     }
 
+    protected function column_venue( $item ) {
+        $name    = isset( $item['venue'] ) ? trim( (string) $item['venue'] ) : '';
+        $address = isset( $item['venue_address'] ) ? trim( (string) $item['venue_address'] ) : '';
+
+        if ( '' === $name && '' === $address ) {
+            return esc_html__( 'No venue', 'great-imports' );
+        }
+
+        $output = '' !== $name ? '<strong>' . esc_html( $name ) . '</strong>' : '';
+        if ( '' !== $address ) {
+            $output .= '<span class="gi-location-address">' . esc_html( $address ) . '</span>';
+        }
+
+        return $output;
+    }
+
+    protected function column_matching_location( $item ) {
+        if ( empty( $item['matching_location'] ) || ! is_array( $item['matching_location'] ) ) {
+            return esc_html__( 'No match', 'great-imports' );
+        }
+
+        $match   = $item['matching_location'];
+        $name    = isset( $match['name'] ) ? trim( (string) $match['name'] ) : '';
+        $address = $this->format_address( $match );
+
+        $output = '' !== $name ? '<strong>' . esc_html( $name ) . '</strong>' : esc_html__( 'Matched location', 'great-imports' );
+        if ( '' !== $address ) {
+            $output .= '<span class="gi-location-address">' . esc_html( $address ) . '</span>';
+        }
+
+        return $output;
+    }
+
     protected function column_default( $item, $column_name ) {
         if ( isset( $item[ $column_name ] ) && '' !== trim( (string) $item[ $column_name ] ) ) {
             return esc_html( (string) $item[ $column_name ] );
@@ -118,10 +152,72 @@ final class GI_Candidate_List_Table extends WP_List_Table {
             'id'         => $id,
             'title'      => GI_Candidate_Review::value( $id, 'title', '', get_the_title( $candidate ) ),
             'date'       => $date,
-            'venue'      => GI_Candidate_Review::value( $id, 'location_name' ),
-            'source'     => GI_Candidate_Review::source_value( $id, 'source_type' ),
+            'venue'             => GI_Candidate_Review::value( $id, 'location_name' ),
+            'venue_address'     => $this->candidate_address( $id ),
+            'matching_location' => $this->matching_location( $id ),
+            'source'            => GI_Candidate_Review::source_value( $id, 'source_type' ),
             'source_url' => (string) get_post_meta( $id, '_gi_source_url', true ),
             'excerpt'    => wp_trim_words( wp_strip_all_tags( $candidate->post_content ), 28 ),
         );
+    }
+
+    private function candidate_address( $candidate_id ) {
+        return $this->format_address(
+            array(
+                'address'  => GI_Candidate_Review::value( $candidate_id, 'location_address_1' ),
+                'address2' => GI_Candidate_Review::value( $candidate_id, 'location_address_2' ),
+                'city'     => GI_Candidate_Review::value( $candidate_id, 'location_city' ),
+                'state'    => GI_Candidate_Review::value( $candidate_id, 'location_state' ),
+                'postcode' => GI_Candidate_Review::value( $candidate_id, 'location_postal_code' ),
+                'country'  => GI_Candidate_Review::value( $candidate_id, 'location_country' ),
+            )
+        );
+    }
+
+    private function matching_location( $candidate_id ) {
+        $selected_id = absint( GI_Candidate_Review::review_value( $candidate_id, 'em_location_id' ) );
+        $suggestions = GI_Candidate_Review::location_suggestions( $candidate_id, 25 );
+
+        if ( $selected_id ) {
+            foreach ( $suggestions as $suggestion ) {
+                if ( $selected_id === absint( isset( $suggestion['id'] ) ? $suggestion['id'] : 0 ) ) {
+                    return $suggestion;
+                }
+            }
+        }
+
+        foreach ( $suggestions as $suggestion ) {
+            $reason = isset( $suggestion['reason'] ) ? strtolower( (string) $suggestion['reason'] ) : '';
+            if ( false !== strpos( $reason, 'same address' ) || false !== strpos( $reason, 'same name' ) ) {
+                return $suggestion;
+            }
+        }
+
+        return array();
+    }
+
+    private function format_address( array $location ) {
+        $street = array_filter(
+            array(
+                isset( $location['address'] ) ? trim( (string) $location['address'] ) : '',
+                isset( $location['address2'] ) ? trim( (string) $location['address2'] ) : '',
+            )
+        );
+        $locality = array_filter(
+            array(
+                isset( $location['city'] ) ? trim( (string) $location['city'] ) : '',
+                isset( $location['state'] ) ? trim( (string) $location['state'] ) : '',
+                isset( $location['postcode'] ) ? trim( (string) $location['postcode'] ) : '',
+            )
+        );
+        $parts = array_filter(
+            array(
+                implode( ', ', $street ),
+                implode( ' ', $locality ),
+                isset( $location['country'] ) ? trim( (string) $location['country'] ) : '',
+            )
+        );
+
+        return implode( ', ', $parts );
     }
 }
