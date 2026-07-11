@@ -74,6 +74,7 @@ final class GI_Import_Preview_Builder {
                 'ticket_classes' => $ticket_classes,
                 'public_rule'    => __( 'Eventbrite may appear publicly only as the purchase-ticket URL.', 'great-imports' ),
             ),
+            'events_manager_payload' => $this->events_manager_payload( $post_id, $title, $start, $end, $location, $description ),
             'stage_handling'      => array(
                 'stage_room' => $stage_room,
                 'note'       => __( 'Multiple stages/rooms at the same address are valid evidence and are not a rejection reason. Stage/room evidence belongs in details unless review chooses otherwise.', 'great-imports' ),
