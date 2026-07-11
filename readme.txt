@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.21
+Stable tag: 0.2.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,7 +13,7 @@ Full evidence-first Eventbrite importer with candidate review editing, manual cl
 
 Great Imports collects Eventbrite evidence into internal review candidates before any Events Manager save. The current workflow is review/dry-run only: it does not create Events Manager events or locations yet.
 
-The main admin screen now puts URL collection and the Recent Event Candidates list first. Eventbrite settings, report download, and manual data removal are secondary collapsed utility panels.
+The main admin screen now puts source search and the Recent Event Candidates list first. Eventbrite settings, report download, and manual data removal are secondary collapsed utility panels.
 
 The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so the candidate rows follow WordPress admin list-table structure instead of custom table markup.
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.22 =
+* Renamed the candidate Venue heading and Venue name editor label to Location and Location name.
+* Renamed the Collect Eventbrite URL panel to Source and the Collect evidence button to Search Source.
+* Kept the Eventbrite URL placeholder, validator, form action, stored fields, and all importer behavior unchanged.
 
 = 0.2.21 =
 * Added independent click-to-open inline editors for candidate Title, Date, and Venue/address fields.
@@ -40,7 +45,7 @@ This version does not schedule recurring imports, does not directly publish Even
 * No candidate, parser, evidence, matching, report, cleanup, ticket, scheduling, or Events Manager behavior changes.
 
 = 0.2.19 =
-* Moved the existing Eventbrite API Settings, Exploratory Report, and Manual Data Removal controls above the URL collection and candidate list.
+* Moved the existing Eventbrite API Settings, Exploratory Report, and Manual Data Removal controls above the source search and candidate list.
 * Added a read-only Current Version item sourced from the installed Great Imports version constant.
 * Arranged the four top utility/status items in a responsive row without duplicating or hiding controls.
 * No control actions, parser, evidence capture, candidate storage, matching, report, ticket, scheduling, cleanup, or Events Manager behavior changes.
@@ -65,7 +70,7 @@ This version does not schedule recurring imports, does not directly publish Even
 * No parser, evidence capture, ticket handling, report generation, storage, or Events Manager import behavior changes.
 
 = 0.2.15 =
-* Reworked the main admin page so URL collection and Recent Event Candidates are the primary workflow.
+* Reworked the main admin page so source search and Recent Event Candidates are the primary workflow.
 * Moved Eventbrite API settings, Exploratory Report download, and Manual Data Removal into secondary utility panels.
 * Kept the candidate table as a list-style screen without embedded dry-run/editor rows.
 * Replaced the prior stacked-card layout CSS with admin-screen layout CSS.
