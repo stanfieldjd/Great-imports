@@ -156,15 +156,42 @@ final class GI_Jsonld_Parser {
             'location_state'       => $this->string_value( isset( $address['addressRegion'] ) ? $address['addressRegion'] : '' ),
             'location_postal_code' => $this->string_value( isset( $address['postalCode'] ) ? $address['postalCode'] : '' ),
             'location_country'     => $this->string_value( isset( $address['addressCountry'] ) ? $address['addressCountry'] : '' ),
-            'ticket_url'        => esc_url_raw( $this->string_value( is_array( $offer ) && isset( $offer['url'] ) ? $offer['url'] : '' ) ),
-            'price'             => $this->string_value( is_array( $offer ) && isset( $offer['price'] ) ? $offer['price'] : '' ),
+            'ticket_url'        => $this->url_value( is_array( $offer ) && isset( $offer['url'] ) ? $offer['url'] : '' ),
+            'price'             => $this->offer_price( $offer ),
             'price_currency'    => $this->string_value( is_array( $offer ) && isset( $offer['priceCurrency'] ) ? $offer['priceCurrency'] : '' ),
             'organizer_name'    => $this->string_value( is_array( $event ) && isset( $event['organizer']['name'] ) ? $event['organizer']['name'] : '' ),
-            'image_url'         => esc_url_raw( $this->string_value( $image ) ),
+            'image_url'         => $this->url_value( $image ),
             'raw_event'         => $event,
             'candidate_status'  => 'needs_review',
             'collection_method' => 'one_time_eventbrite_url',
         );
+    }
+
+    private function offer_price( $offer ) {
+        if ( ! is_array( $offer ) ) {
+            return '';
+        }
+
+        if ( isset( $offer['price'] ) && '' !== trim( (string) $offer['price'] ) ) {
+            return $this->string_value( $offer['price'] );
+        }
+
+        $low  = isset( $offer['lowPrice'] ) ? $this->string_value( $offer['lowPrice'] ) : '';
+        $high = isset( $offer['highPrice'] ) ? $this->string_value( $offer['highPrice'] ) : '';
+
+        if ( '' !== $low && '' !== $high && $low !== $high ) {
+            return $low . ' – ' . $high;
+        }
+
+        return '' !== $low ? $low : $high;
+    }
+
+    private function url_value( $value ) {
+        if ( is_array( $value ) || is_object( $value ) ) {
+            return '';
+        }
+
+        return esc_url_raw( trim( (string) $value ) );
     }
 
     /**
