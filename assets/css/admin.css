@@ -1,34 +1,93 @@
-.gi-wrap .gi-card {
-    background: #fff;
-    border: 1px solid #dcdcde;
-    margin: 14px 0;
-    max-width: 1180px;
-    padding: 14px;
+.gi-admin-screen {
+    max-width: 1240px;
 }
 
-.gi-wrap .gi-card h2 {
+.gi-page-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-top: 12px;
+}
+
+.gi-page-header h1 {
+    margin-bottom: 2px;
+}
+
+.gi-admin-grid {
+    align-items: start;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.gi-main-column,
+.gi-utility-column {
+    min-width: 0;
+}
+
+.gi-collect-panel,
+.gi-list-panel,
+.gi-utility-panel {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+}
+
+.gi-collect-panel {
+    margin: 12px 0 16px;
+    padding: 12px;
+}
+
+.gi-panel-heading,
+.gi-list-header {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.gi-panel-heading h2,
+.gi-list-header h2 {
+    font-size: 16px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.gi-stage-badge,
+.gi-count {
+    background: #f0f0f1;
+    border-radius: 999px;
+    color: #50575e;
+    font-size: 12px;
+    line-height: 1;
+    padding: 5px 8px;
+    white-space: nowrap;
+}
+
+.gi-collect-form {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.gi-url-input {
+    flex: 1 1 520px;
+    max-width: 760px;
+}
+
+.gi-list-panel {
+    border: 0;
     margin-top: 0;
 }
 
-.gi-label {
-    display: block;
-    font-weight: 600;
-    margin: 8px 0 4px;
-}
-
-.gi-url-input,
-.gi-token-input {
-    margin-right: 8px;
-    min-width: 520px;
-}
-
-.gi-inline-check {
-    display: inline-block;
-    margin: 6px 10px 6px 0;
+.gi-list-header {
+    margin: 0 0 8px;
 }
 
 .gi-candidate-table {
-    margin-top: 8px;
+    border-color: #c3c4c7;
+    margin-top: 0;
 }
 
 .gi-candidate-table .column-primary {
@@ -42,8 +101,16 @@
     vertical-align: top;
 }
 
+.gi-candidate-table tbody tr:hover {
+    background: #f6f7f7;
+}
+
+.gi-candidate-table .column-title strong {
+    font-weight: 600;
+}
+
 .gi-candidate-excerpt {
-    color: #3c434a;
+    color: #50575e;
     font-size: 12px;
     line-height: 1.45;
     margin: 3px 0 0;
@@ -56,42 +123,94 @@
     margin-top: 3px;
 }
 
-.gi-simple-list {
-    list-style: disc;
-    margin-left: 20px;
+.gi-empty-list {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    padding: 14px;
 }
 
-.gi-danger-card {
+.gi-utility-column {
+    display: grid;
+    gap: 10px;
+}
+
+.gi-utility-panel {
+    margin: 0;
+}
+
+.gi-utility-panel > summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    font-weight: 600;
+    justify-content: space-between;
+    padding: 10px 12px;
+}
+
+.gi-utility-panel > summary em {
+    color: #646970;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+}
+
+.gi-utility-body {
+    border-top: 1px solid #dcdcde;
+    padding: 12px;
+}
+
+.gi-label {
+    display: block;
+    font-weight: 600;
+    margin: 8px 0 4px;
+}
+
+.gi-token-input {
+    box-sizing: border-box;
+    max-width: 100%;
+    width: 100%;
+}
+
+.gi-inline-check {
+    display: block;
+    margin: 8px 0 10px;
+}
+
+.gi-danger-panel {
     border-left: 4px solid #d63638;
-    margin-top: 24px;
 }
 
-.gi-danger-card h2,
-.gi-danger-details > summary {
+.gi-danger-panel > summary {
     color: #8a2424;
 }
 
-.gi-danger-details > summary {
-    cursor: pointer;
-    font-weight: 700;
-    padding: 4px 0;
-}
-
-.gi-danger-body {
-    border-top: 1px solid #dcdcde;
-    margin-top: 12px;
-    padding-top: 12px;
-}
-
-.gi-danger-card .button.delete {
+.gi-danger-panel .button.delete {
     border-color: #d63638;
     color: #d63638;
 }
 
+@media screen and (max-width: 960px) {
+    .gi-admin-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gi-utility-column {
+        max-width: 640px;
+    }
+}
+
 @media screen and (max-width: 782px) {
-    .gi-url-input,
-    .gi-token-input {
-        min-width: 0;
+    .gi-page-header,
+    .gi-panel-heading,
+    .gi-list-header,
+    .gi-collect-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gi-url-input {
+        flex-basis: auto;
+        max-width: none;
         width: 100%;
     }
 }
