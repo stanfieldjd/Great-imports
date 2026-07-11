@@ -102,13 +102,14 @@
 .gi-utility-column {
     display: grid;
     gap: 10px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .gi-utility-panel {
     margin: 0;
 }
 
+.gi-version-panel,
 .gi-utility-panel > summary {
     align-items: center;
     cursor: pointer;
@@ -118,6 +119,7 @@
     padding: 10px 12px;
 }
 
+.gi-version-panel em,
 .gi-utility-panel > summary em {
     color: #646970;
     font-size: 12px;
