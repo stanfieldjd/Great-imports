@@ -14,12 +14,14 @@ final class GI_Admin {
     private $api_client;
     private $exploratory_report;
     private $preview_builder;
+    private $em_importer;
 
-    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client, GI_Exploratory_Report $exploratory_report, GI_Import_Preview_Builder $preview_builder ) {
+    public function __construct( GI_Eventbrite_Importer $importer, GI_Eventbrite_API_Client $api_client, GI_Exploratory_Report $exploratory_report, GI_Import_Preview_Builder $preview_builder, GI_EM_Importer $em_importer ) {
         $this->importer           = $importer;
         $this->api_client         = $api_client;
         $this->exploratory_report = $exploratory_report;
         $this->preview_builder    = $preview_builder;
+        $this->em_importer        = $em_importer;
     }
 
     public function register_hooks() {
@@ -31,6 +33,7 @@ final class GI_Admin {
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
         add_action( 'admin_post_gi_save_candidate_field', array( $this, 'handle_save_candidate_field' ) );
+        add_action( 'admin_post_gi_import_candidate_to_em', array( $this, 'handle_import_candidate_to_em' ) );
     }
 
     public function register_menu() {
@@ -129,6 +132,16 @@ final class GI_Admin {
         }
 
         $result = GI_Candidate_Review::save( $candidate_id, $data );
+        $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], $candidate_id );
+    }
+
+    public function handle_import_candidate_to_em() {
+        $this->guard( 'import Great Imports candidates into Events Manager' );
+
+        $candidate_id = isset( $_POST['candidate_id'] ) ? absint( $_POST['candidate_id'] ) : 0;
+        check_admin_referer( 'gi_import_candidate_to_em_' . $candidate_id );
+
+        $result = $this->em_importer->import_candidate( $candidate_id );
         $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], $candidate_id );
     }
 
