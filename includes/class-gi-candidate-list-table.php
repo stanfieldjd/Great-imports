@@ -157,6 +157,18 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return $output;
     }
 
+    protected function column_source( $item ) {
+        $output = esc_html( isset( $item['source'] ) ? $item['source'] : '' );
+        $output .= '<form class="gi-import-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        $output .= '<input type="hidden" name="action" value="gi_import_candidate_to_em">';
+        $output .= '<input type="hidden" name="candidate_id" value="' . absint( $item['id'] ) . '">';
+        $output .= wp_nonce_field( 'gi_import_candidate_to_em_' . absint( $item['id'] ), '_wpnonce', true, false );
+        $output .= '<button type="submit" class="button button-primary button-small">' . esc_html__( 'Import to Events Manager', 'great-imports' ) . '</button>';
+        $output .= '</form>';
+
+        return $output;
+    }
+
     protected function column_default( $item, $column_name ) {
         if ( isset( $item[ $column_name ] ) && '' !== trim( (string) $item[ $column_name ] ) ) {
             return esc_html( (string) $item[ $column_name ] );
