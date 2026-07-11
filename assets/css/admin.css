@@ -27,7 +27,6 @@
 }
 
 .gi-collect-panel,
-.gi-list-panel,
 .gi-utility-panel {
     background: #fff;
     border: 1px solid #c3c4c7;
@@ -77,7 +76,6 @@
 }
 
 .gi-list-panel {
-    border: 0;
     margin-top: 0;
 }
 
@@ -85,24 +83,8 @@
     margin: 0 0 8px;
 }
 
-.gi-candidate-table {
-    border-color: #c3c4c7;
-    margin-top: 0;
-}
-
-.gi-candidate-table .column-primary {
-    min-width: 420px;
-}
-
-.gi-candidate-table th,
-.gi-candidate-table td {
-    padding-bottom: 8px;
-    padding-top: 8px;
-    vertical-align: top;
-}
-
-.gi-candidate-table tbody tr:hover {
-    background: #f6f7f7;
+.gi-candidates-form {
+    margin: 0;
 }
 
 .gi-candidate-table .column-title strong {
@@ -115,18 +97,6 @@
     line-height: 1.45;
     margin: 3px 0 0;
     max-width: 560px;
-}
-
-.gi-candidate-table .row-actions {
-    color: #646970;
-    font-size: 12px;
-    margin-top: 3px;
-}
-
-.gi-empty-list {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    padding: 14px;
 }
 
 .gi-utility-column {
