@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.17
+Stable tag: 0.2.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.18 =
+* Added the complete stored candidate address beneath the venue name in the candidate list.
+* Added a Matching Location column immediately after Venue.
+* Displays a reviewer-selected Events Manager location when it is among the current suggestions; otherwise displays only an exact same-name or same-address suggestion.
+* Does not present weak partial suggestions as matches and does not create, update, assign, or save Events Manager locations.
 
 = 0.2.17 =
 * Removed the fixed admin-screen width cap and right utility sidebar so the candidate list uses the full available WordPress admin content width.
