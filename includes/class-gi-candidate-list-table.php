@@ -17,6 +17,9 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     /** @var GI_Import_Preview_Builder */
     private $preview_builder;
 
+    /** @var array<int,array<string,string>> */
+    private $em_locations = array();
+
     public function __construct( GI_Import_Preview_Builder $preview_builder ) {
         parent::__construct(
             array(
@@ -30,7 +33,8 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     }
 
     public function prepare_items() {
-        $candidates = ( new GI_Candidate_Store() )->get_recent_candidates( 20 );
+        $candidates         = ( new GI_Candidate_Store() )->get_recent_candidates( 20 );
+        $this->em_locations = GI_Candidate_Review::all_locations();
 
         $this->_column_headers = array(
             $this->get_columns(),
@@ -80,7 +84,10 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     }
 
     protected function column_title( $item ) {
-        $output = '<strong>' . esc_html( $item['title'] ? $item['title'] : __( '(no title)', 'great-imports' ) ) . '</strong>';
+        $title  = $item['title'] ? $item['title'] : __( '(no title)', 'great-imports' );
+        $output = $this->editor_open( $item, 'title', $title );
+        $output .= '<label>' . esc_html__( 'Title', 'great-imports' ) . '<input type="text" name="title" value="' . esc_attr( $item['title'] ) . '" required></label>';
+        $output .= $this->editor_close();
 
         if ( $item['excerpt'] ) {
             $output .= '<p class="gi-candidate-excerpt">' . esc_html( $item['excerpt'] ) . '</p>';
@@ -94,35 +101,58 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return $output . $this->row_actions( $actions );
     }
 
+    protected function column_date( $item ) {
+        $output = $this->editor_open( $item, 'date', $item['date'] ? $item['date'] : __( 'Not set', 'great-imports' ) );
+        $output .= $this->date_input( 'start_date', __( 'Start', 'great-imports' ), $item['start_date'] );
+        $output .= $this->date_input( 'end_date', __( 'End', 'great-imports' ), $item['end_date'] );
+        $output .= $this->editor_close();
+
+        return $output;
+    }
+
     protected function column_venue( $item ) {
         $name    = isset( $item['venue'] ) ? trim( (string) $item['venue'] ) : '';
         $address = isset( $item['venue_address'] ) ? trim( (string) $item['venue_address'] ) : '';
-
-        if ( '' === $name && '' === $address ) {
-            return esc_html__( 'No venue', 'great-imports' );
-        }
-
-        $output = '' !== $name ? '<strong>' . esc_html( $name ) . '</strong>' : '';
+        $label   = '' !== $name ? $name : __( 'No venue', 'great-imports' );
         if ( '' !== $address ) {
-            $output .= '<span class="gi-location-address">' . esc_html( $address ) . '</span>';
+            $label .= ' — ' . $address;
         }
+
+        $output = $this->editor_open( $item, 'venue', $label );
+        $fields = array(
+            'location_name'        => __( 'Venue name', 'great-imports' ),
+            'location_address_1'   => __( 'Street address', 'great-imports' ),
+            'location_address_2'   => __( 'Street address 2', 'great-imports' ),
+            'location_city'        => __( 'City', 'great-imports' ),
+            'location_state'       => __( 'State', 'great-imports' ),
+            'location_postal_code' => __( 'ZIP', 'great-imports' ),
+            'location_country'     => __( 'Country', 'great-imports' ),
+        );
+        foreach ( $fields as $field => $field_label ) {
+            $output .= '<label>' . esc_html( $field_label ) . '<input type="text" name="' . esc_attr( $field ) . '" value="' . esc_attr( $item[ $field ] ) . '"></label>';
+        }
+        $output .= $this->editor_close();
 
         return $output;
     }
 
     protected function column_matching_location( $item ) {
-        if ( empty( $item['matching_location'] ) || ! is_array( $item['matching_location'] ) ) {
-            return esc_html__( 'No match', 'great-imports' );
+        $output = '<form class="gi-location-match-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        $output .= $this->form_context( $item['id'], 'location' );
+        $output .= '<label class="screen-reader-text" for="gi-em-location-' . absint( $item['id'] ) . '">' . esc_html__( 'Matching Events Manager location', 'great-imports' ) . '</label>';
+        $output .= '<select id="gi-em-location-' . absint( $item['id'] ) . '" name="em_location_id">';
+        $output .= '<option value="0">' . esc_html__( 'No matching location selected', 'great-imports' ) . '</option>';
+        foreach ( $this->em_locations as $location ) {
+            $label = $location['name'];
+            $address = $this->format_address( $location );
+            if ( '' !== $address ) {
+                $label .= ' — ' . $address;
+            }
+            $output .= '<option value="' . absint( $location['id'] ) . '"' . selected( $item['em_location_id'], absint( $location['id'] ), false ) . '>' . esc_html( $label ) . '</option>';
         }
-
-        $match   = $item['matching_location'];
-        $name    = isset( $match['name'] ) ? trim( (string) $match['name'] ) : '';
-        $address = $this->format_address( $match );
-
-        $output = '' !== $name ? '<strong>' . esc_html( $name ) . '</strong>' : esc_html__( 'Matched location', 'great-imports' );
-        if ( '' !== $address ) {
-            $output .= '<span class="gi-location-address">' . esc_html( $address ) . '</span>';
-        }
+        $output .= '</select>';
+        $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Save', 'great-imports' ) . '</button>';
+        $output .= '</form>';
 
         return $output;
     }
@@ -151,14 +181,67 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return array(
             'id'         => $id,
             'title'      => GI_Candidate_Review::value( $id, 'title', '', get_the_title( $candidate ) ),
-            'date'       => $date,
-            'venue'             => GI_Candidate_Review::value( $id, 'location_name' ),
-            'venue_address'     => $this->candidate_address( $id ),
-            'matching_location' => $this->matching_location( $id ),
+            'date'               => $date,
+            'start_date'         => GI_Candidate_Review::value( $id, 'start_date' ),
+            'end_date'           => GI_Candidate_Review::value( $id, 'end_date' ),
+            'venue'              => GI_Candidate_Review::value( $id, 'location_name' ),
+            'location_name'      => GI_Candidate_Review::value( $id, 'location_name' ),
+            'location_address_1' => GI_Candidate_Review::value( $id, 'location_address_1' ),
+            'location_address_2' => GI_Candidate_Review::value( $id, 'location_address_2' ),
+            'location_city'      => GI_Candidate_Review::value( $id, 'location_city' ),
+            'location_state'     => GI_Candidate_Review::value( $id, 'location_state' ),
+            'location_postal_code' => GI_Candidate_Review::value( $id, 'location_postal_code' ),
+            'location_country'   => GI_Candidate_Review::value( $id, 'location_country' ),
+            'venue_address'      => $this->candidate_address( $id ),
+            'matching_location'  => $this->matching_location( $id ),
+            'em_location_id'     => $this->selected_location_id( $id ),
             'source'            => GI_Candidate_Review::source_value( $id, 'source_type' ),
             'source_url' => (string) get_post_meta( $id, '_gi_source_url', true ),
             'excerpt'    => wp_trim_words( wp_strip_all_tags( $candidate->post_content ), 28 ),
         );
+    }
+
+    private function editor_open( array $item, $group, $label ) {
+        $output = '<details class="gi-inline-editor">';
+        $output .= '<summary>' . esc_html( $label ) . '</summary>';
+        $output .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        $output .= $this->form_context( $item['id'], $group );
+
+        return $output;
+    }
+
+    private function editor_close() {
+        return '<button type="submit" class="button button-small">' . esc_html__( 'Save', 'great-imports' ) . '</button></form></details>';
+    }
+
+    private function form_context( $candidate_id, $group ) {
+        $output = '<input type="hidden" name="action" value="gi_save_candidate_field">';
+        $output .= '<input type="hidden" name="candidate_id" value="' . absint( $candidate_id ) . '">';
+        $output .= '<input type="hidden" name="field_group" value="' . esc_attr( $group ) . '">';
+        $output .= wp_nonce_field( 'gi_save_candidate_field_' . absint( $candidate_id ), '_wpnonce', true, false );
+
+        return $output;
+    }
+
+    private function date_input( $field, $label, $value ) {
+        $date = '';
+        $time = '';
+        if ( preg_match( '/^(\d{4}-\d{2}-\d{2})(?:T|\s)(\d{2}:\d{2})/', (string) $value, $matches ) ) {
+            $date = $matches[1];
+            $time = $matches[2];
+        }
+
+        return '<fieldset><legend>' . esc_html( $label ) . '</legend><input type="date" name="' . esc_attr( $field . '_date' ) . '" value="' . esc_attr( $date ) . '"> <input type="time" name="' . esc_attr( $field . '_time' ) . '" value="' . esc_attr( $time ) . '"></fieldset>';
+    }
+
+    private function selected_location_id( $candidate_id ) {
+        $selected = absint( GI_Candidate_Review::review_value( $candidate_id, 'em_location_id' ) );
+        if ( $selected ) {
+            return $selected;
+        }
+
+        $match = $this->matching_location( $candidate_id );
+        return ! empty( $match['id'] ) ? absint( $match['id'] ) : 0;
     }
 
     private function candidate_address( $candidate_id ) {
