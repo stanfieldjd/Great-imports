@@ -28,6 +28,7 @@ final class GI_Import_Preview_Builder {
         $faqs           = $this->faqs_from_bundle( $bundle );
         $description    = $this->assemble_description_html( $candidate, $post_id, $start, $end, $ticket_classes, $faqs );
         $stage_room     = $this->candidate_value( $post_id, 'stage_room' );
+        $location       = GI_Candidate_Review::normalized_location_fields( $post_id );
 
         return array(
             'public_event_fields' => array(
@@ -44,13 +45,13 @@ final class GI_Import_Preview_Builder {
                 'note'           => __( 'Overall event time is available. No separate source-backed set times or Events Manager timeslots have been extracted for this candidate.', 'great-imports' ),
             ),
             'location_fields'     => array(
-                'location_name'     => $this->candidate_value( $post_id, 'location_name' ),
-                'location_address'  => $this->candidate_value( $post_id, 'location_address_1' ),
-                'location_address2' => $this->candidate_value( $post_id, 'location_address_2' ),
-                'location_town'     => $this->candidate_value( $post_id, 'location_city' ),
-                'location_state'    => $this->candidate_value( $post_id, 'location_state' ),
-                'location_postcode' => $this->candidate_value( $post_id, 'location_postal_code' ),
-                'location_country'  => $this->candidate_value( $post_id, 'location_country' ),
+                'location_name'     => $location['name'],
+                'location_address'  => $location['address_1'],
+                'location_address2' => $location['address_2'],
+                'location_town'     => $location['city'],
+                'location_state'    => $location['state'],
+                'location_postcode' => $location['postcode'],
+                'location_country'  => $location['country'],
                 'stage_room'        => $stage_room,
                 'handoff_note'      => __( 'Great Imports fills reviewed address fields only. Events Manager handles save/update/location ID/map behavior when an import step is later approved.', 'great-imports' ),
             ),
@@ -181,13 +182,14 @@ final class GI_Import_Preview_Builder {
     }
 
     private function venue_section_html( $post_id ) {
-        $name    = $this->candidate_value( $post_id, 'location_name' );
-        $address = array_filter(
+        $location = GI_Candidate_Review::normalized_location_fields( $post_id );
+        $name     = $location['name'];
+        $address  = array_filter(
             array(
-                $this->candidate_value( $post_id, 'location_address_1' ),
-                $this->candidate_value( $post_id, 'location_address_2' ),
-                trim( $this->candidate_value( $post_id, 'location_city' ) . ', ' . $this->candidate_value( $post_id, 'location_state' ) . ' ' . $this->candidate_value( $post_id, 'location_postal_code' ) ),
-                $this->candidate_value( $post_id, 'location_country' ),
+                $location['address_1'],
+                $location['address_2'],
+                trim( $location['city'] . ', ' . $location['state'] . ' ' . $location['postcode'] ),
+                $location['country'],
             )
         );
         $stage   = $this->candidate_value( $post_id, 'stage_room' );
@@ -196,7 +198,7 @@ final class GI_Import_Preview_Builder {
             return '';
         }
 
-        $html = '<h2>' . esc_html__( 'Venue', 'great-imports' ) . '</h2>';
+        $html = '<h2>' . esc_html__( 'Location', 'great-imports' ) . '</h2>';
 
         if ( '' !== $name ) {
             $html .= '<p><strong>' . esc_html( $name ) . '</strong></p>';
@@ -401,10 +403,15 @@ final class GI_Import_Preview_Builder {
     }
 
     private function split_local_datetime( $datetime ) {
-        $datetime  = trim( (string) $datetime );
-        $timestamp = '' !== $datetime ? strtotime( $datetime ) : false;
+        $datetime = trim( (string) $datetime );
 
-        if ( false === $timestamp ) {
+        try {
+            $value = '' !== $datetime ? new DateTimeImmutable( $datetime, wp_timezone() ) : null;
+        } catch ( Exception $exception ) {
+            $value = null;
+        }
+
+        if ( ! $value ) {
             return array(
                 'raw'       => $datetime,
                 'date'      => '',
@@ -416,10 +423,10 @@ final class GI_Import_Preview_Builder {
 
         return array(
             'raw'       => $datetime,
-            'date'      => date_i18n( 'Y-m-d', $timestamp ),
-            'time'      => date_i18n( 'g:i A', $timestamp ),
-            'label'     => date_i18n( 'l, F j, Y g:i A', $timestamp ),
-            'timestamp' => $timestamp,
+            'date'      => $value->format( 'Y-m-d' ),
+            'time'      => $value->format( 'g:i A' ),
+            'label'     => $value->format( 'l, F j, Y g:i A' ),
+            'timestamp' => $value->getTimestamp(),
         );
     }
 
