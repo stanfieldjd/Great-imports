@@ -166,6 +166,10 @@ final class GI_Candidate_Review {
             'postcode' => self::value( $candidate_id, 'location_postal_code' ),
             'country'  => self::value( $candidate_id, 'location_country' ),
         );
+        if ( '' === $candidate['address'] ) {
+            $candidate['address'] = self::source_value( $candidate_id, 'location_address' );
+        }
+
         $suggestions  = self::suggestions_from_em_table( $candidate, $limit );
         if ( empty( $suggestions ) ) {
             $suggestions = self::suggestions_from_location_posts( $candidate, $limit );
