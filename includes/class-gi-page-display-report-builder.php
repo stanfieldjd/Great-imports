@@ -140,7 +140,7 @@ final class GI_Page_Display_Report_Builder {
             ),
             'api_venue_name'          => isset( $venue['name'] ) ? sanitize_text_field( (string) $venue['name'] ) : '',
             'line_matches'            => $this->lines_containing_any( $visible_text_lines, array( 'location', 'venue', 'station street', 'directions', 'driving', 'walking', 'public transport', 'biking' ), 40 ),
-            'coordinate_rule'         => 'Latitude/longitude are not reported for import review and are not used by Great Imports.',
+            'coordinate_rule'         => 'Latitude/longitude are redacted from reports but can be transferred privately to Events Manager locations when source-backed values are available.',
         );
     }
 
