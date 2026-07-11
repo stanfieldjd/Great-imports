@@ -179,10 +179,9 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         $suggestions = GI_Candidate_Review::location_suggestions( $candidate_id, 25 );
 
         if ( $selected_id ) {
-            foreach ( $suggestions as $suggestion ) {
-                if ( $selected_id === absint( isset( $suggestion['id'] ) ? $suggestion['id'] : 0 ) ) {
-                    return $suggestion;
-                }
+            $selected = $this->selected_location_by_id( $selected_id );
+            if ( ! empty( $selected ) ) {
+                return $selected;
             }
         }
 
@@ -191,6 +190,50 @@ final class GI_Candidate_List_Table extends WP_List_Table {
             if ( false !== strpos( $reason, 'same address' ) || false !== strpos( $reason, 'same name' ) ) {
                 return $suggestion;
             }
+        }
+
+        return array();
+    }
+
+    private function selected_location_by_id( $location_id ) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'em_locations';
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+
+        if ( $found === $table ) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT location_id, location_name, location_address, location_town, location_state, location_postcode, location_country FROM {$table} WHERE location_id = %d LIMIT 1",
+                    $location_id
+                ),
+                ARRAY_A
+            );
+
+            if ( is_array( $row ) ) {
+                return array(
+                    'id'       => (string) absint( $row['location_id'] ),
+                    'name'     => sanitize_text_field( (string) $row['location_name'] ),
+                    'address'  => sanitize_text_field( (string) $row['location_address'] ),
+                    'city'     => sanitize_text_field( (string) $row['location_town'] ),
+                    'state'    => sanitize_text_field( (string) $row['location_state'] ),
+                    'postcode' => sanitize_text_field( (string) $row['location_postcode'] ),
+                    'country'  => sanitize_text_field( (string) $row['location_country'] ),
+                );
+            }
+        }
+
+        $post = get_post( $location_id );
+        if ( $post && 'location' === $post->post_type ) {
+            return array(
+                'id'       => (string) absint( $post->ID ),
+                'name'     => get_the_title( $post ),
+                'address'  => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_address', true ) ),
+                'city'     => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_town', true ) ),
+                'state'    => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_state', true ) ),
+                'postcode' => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_postcode', true ) ),
+                'country'  => sanitize_text_field( (string) get_post_meta( $post->ID, '_location_country', true ) ),
+            );
         }
 
         return array();
