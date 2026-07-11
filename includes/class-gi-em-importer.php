@@ -88,6 +88,13 @@ final class GI_EM_Importer {
         $location->location_country  = isset( $payload['location_country'] ) ? $payload['location_country'] : '';
         $location->location_owner    = get_current_user_id();
 
+        $latitude  = isset( $payload['location_latitude'] ) ? $this->coordinate_value( $payload['location_latitude'], 'latitude' ) : '';
+        $longitude = isset( $payload['location_longitude'] ) ? $this->coordinate_value( $payload['location_longitude'], 'longitude' ) : '';
+        if ( '' !== $latitude && '' !== $longitude ) {
+            $location->location_latitude  = $latitude;
+            $location->location_longitude = $longitude;
+        }
+
         if ( ! method_exists( $location, 'save' ) || ! $location->save() || empty( $location->location_id ) ) {
             return $this->failure( $this->object_error( $location, __( 'Events Manager location could not be saved.', 'great-imports' ) ) );
         }
@@ -136,6 +143,27 @@ final class GI_EM_Importer {
         }
 
         return array( 'success' => true, 'event_id' => absint( $event->event_id ) );
+    }
+
+    /**
+     * Keep only valid decimal source coordinates for Events Manager location saves.
+     *
+     * @param string $value Coordinate value.
+     * @param string $axis  Coordinate axis.
+     */
+    private function coordinate_value( $value, $axis ) {
+        $value = trim( (string) $value );
+        if ( '' === $value || ! is_numeric( $value ) ) {
+            return '';
+        }
+
+        $number = (float) $value;
+        $limit  = 'latitude' === $axis ? 90 : 180;
+        if ( $number < -$limit || $number > $limit ) {
+            return '';
+        }
+
+        return rtrim( rtrim( sprintf( '%.8F', $number ), '0' ), '.' );
     }
 
     private function object_error( $object, $fallback ) {
