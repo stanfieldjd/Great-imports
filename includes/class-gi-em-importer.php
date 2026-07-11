@@ -141,7 +141,7 @@ final class GI_EM_Importer {
     private function object_error( $object, $fallback ) {
         if ( is_object( $object ) && method_exists( $object, 'get_errors' ) ) {
             $errors = $object->get_errors();
-            if ( is_array( $errors ) && ! empty( $errors ) {
+            if ( is_array( $errors ) && ! empty( $errors ) ) {
                 return implode( ' ', array_map( 'sanitize_text_field', $errors ) );
             }
         }
