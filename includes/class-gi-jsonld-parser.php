@@ -138,6 +138,7 @@ final class GI_Jsonld_Parser {
      */
     private function normalize_event( array $event ) {
         $location = $this->first_item( isset( $event['location'] ) ? $event['location'] : array() );
+        $address  = is_array( $location ) && isset( $location['address'] ) && is_array( $location['address'] ) ? $location['address'] : array();
         $offer    = $this->first_item( isset( $event['offers'] ) ? $event['offers'] : array() );
         $image    = $this->first_item( isset( $event['image'] ) ? $event['image'] : '' );
 
@@ -148,7 +149,13 @@ final class GI_Jsonld_Parser {
             'start_date'        => $this->string_value( isset( $event['startDate'] ) ? $event['startDate'] : '' ),
             'end_date'          => $this->string_value( isset( $event['endDate'] ) ? $event['endDate'] : '' ),
             'location_name'     => $this->string_value( is_array( $location ) && isset( $location['name'] ) ? $location['name'] : '' ),
-            'location_address'  => $this->format_address( is_array( $location ) && isset( $location['address'] ) ? $location['address'] : array() ),
+            'location_address'     => $this->format_address( is_array( $location ) && isset( $location['address'] ) ? $location['address'] : array() ),
+            'location_address_1'   => $this->string_value( isset( $address['streetAddress'] ) ? $address['streetAddress'] : '' ),
+            'location_address_2'   => '',
+            'location_city'        => $this->string_value( isset( $address['addressLocality'] ) ? $address['addressLocality'] : '' ),
+            'location_state'       => $this->string_value( isset( $address['addressRegion'] ) ? $address['addressRegion'] : '' ),
+            'location_postal_code' => $this->string_value( isset( $address['postalCode'] ) ? $address['postalCode'] : '' ),
+            'location_country'     => $this->string_value( isset( $address['addressCountry'] ) ? $address['addressCountry'] : '' ),
             'ticket_url'        => esc_url_raw( $this->string_value( is_array( $offer ) && isset( $offer['url'] ) ? $offer['url'] : '' ) ),
             'price'             => $this->string_value( is_array( $offer ) && isset( $offer['price'] ) ? $offer['price'] : '' ),
             'price_currency'    => $this->string_value( is_array( $offer ) && isset( $offer['priceCurrency'] ) ? $offer['priceCurrency'] : '' ),
