@@ -58,7 +58,7 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return array(
             'title'  => __( 'Title', 'great-imports' ),
             'date'   => __( 'Date', 'great-imports' ),
-            'venue'             => __( 'Venue', 'great-imports' ),
+            'venue'             => __( 'Location', 'great-imports' ),
             'matching_location' => __( 'Matching Location', 'great-imports' ),
             'source'            => __( 'Source', 'great-imports' ),
         );
@@ -120,7 +120,7 @@ final class GI_Candidate_List_Table extends WP_List_Table {
 
         $output = $this->editor_open( $item, 'venue', $label );
         $fields = array(
-            'location_name'        => __( 'Venue name', 'great-imports' ),
+            'location_name'        => __( 'Location name', 'great-imports' ),
             'location_address_1'   => __( 'Street address', 'great-imports' ),
             'location_address_2'   => __( 'Street address 2', 'great-imports' ),
             'location_city'        => __( 'City', 'great-imports' ),
