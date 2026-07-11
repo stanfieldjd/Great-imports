@@ -174,9 +174,10 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     }
 
     private function candidate_to_item( $candidate ) {
-        $id      = (int) $candidate->ID;
-        $preview = $this->preview_builder->build_for_candidate( $candidate );
-        $date    = isset( $preview['public_event_fields']['start']['label'] ) ? (string) $preview['public_event_fields']['start']['label'] : GI_Candidate_Review::value( $id, 'start_date' );
+        $id       = (int) $candidate->ID;
+        $preview  = $this->preview_builder->build_for_candidate( $candidate );
+        $location = GI_Candidate_Review::normalized_location_fields( $id );
+        $date     = isset( $preview['public_event_fields']['start']['label'] ) ? (string) $preview['public_event_fields']['start']['label'] : GI_Candidate_Review::value( $id, 'start_date' );
 
         return array(
             'id'         => $id,
@@ -184,14 +185,14 @@ final class GI_Candidate_List_Table extends WP_List_Table {
             'date'               => $date,
             'start_date'         => GI_Candidate_Review::value( $id, 'start_date' ),
             'end_date'           => GI_Candidate_Review::value( $id, 'end_date' ),
-            'venue'              => GI_Candidate_Review::value( $id, 'location_name' ),
-            'location_name'      => GI_Candidate_Review::value( $id, 'location_name' ),
-            'location_address_1' => GI_Candidate_Review::value( $id, 'location_address_1', '', GI_Candidate_Review::source_value( $id, 'location_address' ) ),
-            'location_address_2' => GI_Candidate_Review::value( $id, 'location_address_2' ),
-            'location_city'      => GI_Candidate_Review::value( $id, 'location_city' ),
-            'location_state'     => GI_Candidate_Review::value( $id, 'location_state' ),
-            'location_postal_code' => GI_Candidate_Review::value( $id, 'location_postal_code' ),
-            'location_country'   => GI_Candidate_Review::value( $id, 'location_country' ),
+            'venue'                => $location['name'],
+            'location_name'        => $location['name'],
+            'location_address_1'   => $location['address_1'],
+            'location_address_2'   => $location['address_2'],
+            'location_city'        => $location['city'],
+            'location_state'       => $location['state'],
+            'location_postal_code' => $location['postcode'],
+            'location_country'     => $location['country'],
             'venue_address'      => $this->candidate_address( $id ),
             'matching_location'  => $this->matching_location( $id ),
             'em_location_id'     => $this->selected_location_id( $id ),
@@ -245,14 +246,16 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     }
 
     private function candidate_address( $candidate_id ) {
+        $location = GI_Candidate_Review::normalized_location_fields( $candidate_id );
+
         return $this->format_address(
             array(
-                'address'  => GI_Candidate_Review::value( $candidate_id, 'location_address_1', '', GI_Candidate_Review::source_value( $candidate_id, 'location_address' ) ),
-                'address2' => GI_Candidate_Review::value( $candidate_id, 'location_address_2' ),
-                'city'     => GI_Candidate_Review::value( $candidate_id, 'location_city' ),
-                'state'    => GI_Candidate_Review::value( $candidate_id, 'location_state' ),
-                'postcode' => GI_Candidate_Review::value( $candidate_id, 'location_postal_code' ),
-                'country'  => GI_Candidate_Review::value( $candidate_id, 'location_country' ),
+                'address'  => $location['address_1'],
+                'address2' => $location['address_2'],
+                'city'     => $location['city'],
+                'state'    => $location['state'],
+                'postcode' => $location['postcode'],
+                'country'  => $location['country'],
             )
         );
     }
