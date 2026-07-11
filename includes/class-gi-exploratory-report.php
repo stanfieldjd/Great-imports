@@ -443,7 +443,7 @@ final class GI_Exploratory_Report {
         }
 
         if ( $this->is_coordinate_key( $key ) ) {
-            return '[excluded-not-used]';
+            return '[coordinate-used-for-em-location-not-exported]';
         }
 
         if ( is_array( $value ) ) {
@@ -483,13 +483,18 @@ final class GI_Exploratory_Report {
     }
 
     /**
-     * Detect structured coordinate fields. Great Imports does not use or export these in review reports.
+     * Detect structured coordinate fields. Great Imports can transfer these to Events Manager
+     * locations, but raw values are not exported in review reports.
      *
      * @param string $key Field key.
      */
     private function is_coordinate_key( $key ) {
         $key = strtolower( (string) $key );
 
-        return in_array( $key, array( 'latitude', 'longitude', 'lat', 'lng', 'lon', 'long' ), true );
+        if ( in_array( $key, array( 'latitude', 'longitude', 'lat', 'lng', 'lon', 'long' ), true ) ) {
+            return true;
+        }
+
+        return false !== strpos( $key, 'latitude' ) || false !== strpos( $key, 'longitude' );
     }
 }
