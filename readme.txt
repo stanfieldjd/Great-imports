@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.20
+Stable tag: 0.2.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,13 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.21 =
+* Added independent click-to-open inline editors for candidate Title, Date, and Venue/address fields.
+* Added a Matching Location dropdown containing current Events Manager locations and storing only the candidate review location ID.
+* Restored a capability-checked, nonce-protected candidate field save handler with strict field-group allowlists.
+* Removed the unnecessary outer candidate-table GET form so inline POST forms remain valid and independent.
+* Raw source evidence and Events Manager records remain unchanged; edits are stored only as candidate reviewer overrides.
 
 = 0.2.20 =
 * Removed the redundant Collect URL page-title shortcut from the rendered admin header.
