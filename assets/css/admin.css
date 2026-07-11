@@ -86,6 +86,12 @@
     font-weight: 600;
 }
 
+.gi-location-address {
+    color: #50575e;
+    display: block;
+    margin-top: 3px;
+}
+
 .gi-candidate-excerpt {
     color: #50575e;
     font-size: 12px;
