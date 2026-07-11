@@ -402,6 +402,76 @@ final class GI_Import_Preview_Builder {
         return sanitize_text_field( (string) $value );
     }
 
+    private function events_manager_payload( $post_id, $title, array $start, array $end, array $location, $description ) {
+        $selected_location_id = absint( $this->review_meta( $post_id, 'em_location_id' ) );
+        $source_timezone      = $this->candidate_value( $post_id, 'timezone' );
+        $timezone             = '' !== $source_timezone ? $source_timezone : wp_timezone_string();
+        $timezone_provenance  = '' !== $source_timezone ? 'source' : 'wordpress_site_fallback';
+        $errors               = array();
+        $warnings             = array();
+
+        if ( '' === trim( (string) $title ) ) {
+            $errors[] = __( 'Event title is required.', 'great-imports' );
+        }
+        if ( empty( $start['date'] ) || empty( $start['time'] ) ) {
+            $errors[] = __( 'Event start date and time are required.', 'great-imports' );
+        }
+        if ( empty( $end['date'] ) || empty( $end['time'] ) ) {
+            $errors[] = __( 'Event end date and time are required.', 'great-imports' );
+        }
+        if ( '' === $timezone ) {
+            $errors[] = __( 'Event timezone is required.', 'great-imports' );
+        } elseif ( 'wordpress_site_fallback' === $timezone_provenance ) {
+            $warnings[] = __( 'Source timezone was absent; the WordPress site timezone will be used.', 'great-imports' );
+        }
+        if ( ! $selected_location_id && '' === $location['name'] && '' === $location['address_1'] ) {
+            $errors[] = __( 'A selected Events Manager location or source-backed location is required.', 'great-imports' );
+        }
+
+        return array(
+            'candidate_post_id' => absint( $post_id ),
+            'ready_for_save'    => empty( $errors ),
+            'validation'        => array(
+                'errors'   => $errors,
+                'warnings' => $warnings,
+            ),
+            'event'             => array(
+                'event_name'       => $title,
+                'event_start_date' => isset( $start['date'] ) ? $start['date'] : '',
+                'event_start_time' => isset( $start['time'] ) ? $start['time'] : '',
+                'event_end_date'   => isset( $end['date'] ) ? $end['date'] : '',
+                'event_end_time'   => isset( $end['time'] ) ? $end['time'] : '',
+                'event_timezone'   => $timezone,
+                'timezone_source'  => $timezone_provenance,
+                'post_content'     => wp_kses_post( $description ),
+                'event_status'     => 'draft_review',
+            ),
+            'location'          => array(
+                'strategy'          => $selected_location_id ? 'existing' : 'create',
+                'em_location_id'    => $selected_location_id,
+                'location_name'     => $location['name'],
+                'location_address'  => $location['address_1'],
+                'location_address2' => $location['address_2'],
+                'location_town'     => $location['city'],
+                'location_state'    => $location['state'],
+                'location_postcode' => $location['postcode'],
+                'location_country'  => $location['country'],
+            ),
+            'ticketing'         => array(
+                'handling'   => 'description_only',
+                'ticket_url' => $this->candidate_value( $post_id, 'ticket_url' ),
+                'price'      => $this->candidate_value( $post_id, 'price' ),
+                'currency'   => $this->candidate_value( $post_id, 'price_currency' ),
+            ),
+            'source_identity'   => array(
+                'source_type'         => $this->meta( $post_id, 'source_type' ),
+                'source_url'          => $this->meta( $post_id, 'source_url' ),
+                'eventbrite_event_id' => $this->meta( $post_id, 'eventbrite_event_id' ),
+                'fingerprint'          => $this->meta( $post_id, 'fingerprint' ),
+            ),
+        );
+    }
+
     private function split_local_datetime( $datetime ) {
         $datetime = trim( (string) $datetime );
 
