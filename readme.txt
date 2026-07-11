@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.28
+Stable tag: 0.2.29
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ Full evidence-first Eventbrite importer with candidate review editing, manual cl
 
 == Description ==
 
-Great Imports collects Eventbrite evidence into internal review candidates before any Events Manager save. The current workflow is review/dry-run only: it does not create Events Manager events or locations yet.
+Great Imports collects Eventbrite evidence into internal review candidates, then imports reviewed candidates into Events Manager draft events when the Import to Events Manager action is selected.
 
 The main admin screen now puts source search and the Recent Event Candidates list first. Eventbrite settings, report download, and manual data removal are secondary collapsed utility panels.
 
@@ -19,13 +19,19 @@ The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so
 
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
-Great Imports does not geocode or transfer latitude/longitude. A matched Events Manager location can be selected from the Location area for a later handoff; Events Manager still owns saving, updating, mapping, and location ID behavior.
+Great Imports does not run its own geocoder. When Eventbrite source evidence includes valid latitude/longitude, those coordinates are transferred privately into newly created Events Manager locations so the map fields are populated during import. A matched Events Manager location can also be selected from the Location area.
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
-This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
+This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.29 =
+* Captures valid source-backed venue latitude/longitude from Eventbrite API, schema.org geo, and Eventbrite page meta tags.
+* Adds private coordinate fields to the Events Manager payload and newly created EM_Location objects.
+* Keeps raw coordinates out of exploratory reports while no longer labeling them as unused.
+* Does not add a separate geocoder, OSM/Nominatim calls, ticket/bookings changes, publishing, scheduling, or image transfer.
 
 = 0.2.28 =
 * Added a visible Import to Events Manager button to every candidate row.
