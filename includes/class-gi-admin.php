@@ -123,66 +123,72 @@ final class GI_Admin {
 
         $candidates = ( new GI_Candidate_Store() )->get_recent_candidates( 20 );
 
-        echo '<div class="wrap gi-wrap">';
-        echo '<h1>' . esc_html__( 'Great Imports', 'great-imports' ) . '</h1>';
+        echo '<div class="wrap gi-wrap gi-admin-screen">';
+        $this->page_header();
         $this->render_notice();
-        $this->settings_card();
-        $this->collect_card();
-        $this->report_card();
-        $this->candidates_card( $candidates );
+
+        echo '<div class="gi-admin-grid">';
+        echo '<main class="gi-main-column">';
+        $this->collect_panel();
+        $this->candidates_panel( $candidates );
+        echo '</main>';
+
+        echo '<aside class="gi-utility-column" aria-label="' . esc_attr__( 'Great Imports utilities', 'great-imports' ) . '">';
+        $this->settings_panel();
+        $this->report_panel();
         $this->manual_data_removal();
+        echo '</aside>';
+        echo '</div>';
         echo '</div>';
     }
 
-    private function settings_card() {
-        echo '<div class="gi-card">';
-        echo '<h2>' . esc_html__( 'Eventbrite API Settings', 'great-imports' ) . '</h2>';
-        echo '<p><strong>' . esc_html__( 'Status:', 'great-imports' ) . '</strong> ' . esc_html( $this->api_client->has_private_token() ? __( 'Private token configured', 'great-imports' ) : __( 'Private token not configured', 'great-imports' ) ) . '</p>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        wp_nonce_field( 'gi_eventbrite_save_settings' );
-        echo '<input type="hidden" name="action" value="gi_eventbrite_save_settings">';
-        echo '<label class="gi-label" for="gi_eventbrite_private_token">' . esc_html__( 'Eventbrite private token', 'great-imports' ) . '</label>';
-        echo '<input type="password" class="regular-text gi-token-input" id="gi_eventbrite_private_token" name="gi_eventbrite_private_token" placeholder="' . esc_attr( $this->api_client->has_private_token() ? __( 'Configured — enter a new token to replace it', 'great-imports' ) : __( 'Paste private token', 'great-imports' ) ) . '">';
-        echo '<label class="gi-inline-check"><input type="checkbox" name="gi_eventbrite_clear_token" value="1"> ' . esc_html__( 'Clear saved token', 'great-imports' ) . '</label> ';
-        submit_button( __( 'Save Eventbrite settings', 'great-imports' ), 'secondary', 'submit', false );
-        echo '</form></div>';
+    private function page_header() {
+        echo '<div class="gi-page-header">';
+        echo '<div>';
+        echo '<h1 class="wp-heading-inline">' . esc_html__( 'Great Imports', 'great-imports' ) . '</h1>';
+        echo '<p class="description">' . esc_html__( 'Collect Eventbrite evidence into candidates before any Events Manager save.', 'great-imports' ) . '</p>';
+        echo '</div>';
+        echo '<a class="page-title-action" href="#gi-collect-url">' . esc_html__( 'Collect URL', 'great-imports' ) . '</a>';
+        echo '</div>';
+        echo '<hr class="wp-header-end">';
     }
 
-    private function collect_card() {
-        echo '<div class="gi-card">';
-        echo '<h2>' . esc_html__( 'One-time Eventbrite Import', 'great-imports' ) . '</h2>';
-        echo '<p><strong>' . esc_html__( 'Current stage:', 'great-imports' ) . '</strong> ' . esc_html__( 'Evidence collection and candidate dry run only. This screen does not create Events Manager events yet.', 'great-imports' ) . '</p>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+    private function collect_panel() {
+        echo '<section id="gi-collect-url" class="gi-collect-panel" aria-labelledby="gi-collect-heading">';
+        echo '<div class="gi-panel-heading">';
+        echo '<h2 id="gi-collect-heading">' . esc_html__( 'Collect Eventbrite URL', 'great-imports' ) . '</h2>';
+        echo '<span class="gi-stage-badge">' . esc_html__( 'Candidate only', 'great-imports' ) . '</span>';
+        echo '</div>';
+        echo '<form class="gi-collect-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
         wp_nonce_field( 'gi_eventbrite_import_once' );
         echo '<input type="hidden" name="action" value="gi_eventbrite_import_once">';
-        echo '<label class="gi-label" for="gi_eventbrite_url">' . esc_html__( 'Eventbrite URL', 'great-imports' ) . '</label>';
+        echo '<label class="screen-reader-text" for="gi_eventbrite_url">' . esc_html__( 'Eventbrite URL', 'great-imports' ) . '</label>';
         echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789" required> ';
-        submit_button( __( 'Collect evidence / refresh candidate', 'great-imports' ), 'primary', 'submit', false );
-        echo '</form></div>';
+        submit_button( __( 'Collect evidence', 'great-imports' ), 'primary', 'submit', false );
+        echo '</form>';
+        echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
+        echo '</section>';
     }
 
-    private function report_card() {
-        echo '<div class="gi-card">';
-        echo '<h2>' . esc_html__( 'Exploratory Report', 'great-imports' ) . '</h2>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        wp_nonce_field( 'gi_download_exploratory_report' );
-        echo '<input type="hidden" name="action" value="gi_download_exploratory_report">';
-        submit_button( __( 'Download Exploratory Report', 'great-imports' ), 'secondary', 'submit', false );
-        echo '</form></div>';
-    }
+    private function candidates_panel( array $candidates ) {
+        $count = count( $candidates );
 
-    private function candidates_card( array $candidates ) {
-        echo '<div class="gi-card gi-candidates-card">';
-        echo '<h2>' . esc_html__( 'Recent Event Candidates', 'great-imports' ) . '</h2>';
+        echo '<section class="gi-list-panel" aria-labelledby="gi-candidates-heading">';
+        echo '<div class="gi-list-header">';
+        echo '<h2 id="gi-candidates-heading">' . esc_html__( 'Recent Event Candidates', 'great-imports' ) . '</h2>';
+        echo '<span class="gi-count">' . esc_html( sprintf( _n( '%s item', '%s items', $count, 'great-imports' ), number_format_i18n( $count ) ) ) . '</span>';
+        echo '</div>';
 
         if ( empty( $candidates ) ) {
+            echo '<div class="gi-empty-list">';
             echo '<p>' . esc_html__( 'No candidates have been collected yet.', 'great-imports' ) . '</p>';
             echo '</div>';
+            echo '</section>';
             return;
         }
 
         $this->candidate_table( $candidates );
-        echo '</div>';
+        echo '</section>';
     }
 
     private function candidate_table( array $candidates ) {
@@ -204,9 +210,9 @@ final class GI_Admin {
             $url     = (string) get_post_meta( $id, '_gi_source_url', true );
             $excerpt = wp_trim_words( wp_strip_all_tags( $candidate->post_content ), 28 );
 
-            echo '<tr class="gi-candidate-main-row">';
+            echo '<tr class="gi-candidate-row">';
             echo '<td class="title column-title column-primary">';
-            echo '<strong>' . esc_html( $title ) . '</strong>';
+            echo '<strong>' . esc_html( $title ? $title : __( '(no title)', 'great-imports' ) ) . '</strong>';
 
             if ( $excerpt ) {
                 echo '<p class="gi-candidate-excerpt">' . esc_html( $excerpt ) . '</p>';
@@ -217,8 +223,8 @@ final class GI_Admin {
             }
 
             echo '</td>';
-            echo '<td>' . esc_html( $date ) . '</td>';
-            echo '<td>' . esc_html( $venue ) . '</td>';
+            echo '<td>' . esc_html( $date ? $date : __( 'Not set', 'great-imports' ) ) . '</td>';
+            echo '<td>' . esc_html( $venue ? $venue : __( 'No venue', 'great-imports' ) ) . '</td>';
             echo '<td>' . esc_html( $source ? $source : __( 'Source', 'great-imports' ) ) . '</td>';
             echo '</tr>';
         }
@@ -226,8 +232,39 @@ final class GI_Admin {
         echo '</tbody></table>';
     }
 
+    private function settings_panel() {
+        $status = $this->api_client->has_private_token() ? __( 'Configured', 'great-imports' ) : __( 'Not configured', 'great-imports' );
+
+        echo '<details class="gi-utility-panel">';
+        echo '<summary><span>' . esc_html__( 'Eventbrite API Settings', 'great-imports' ) . '</span><em>' . esc_html( $status ) . '</em></summary>';
+        echo '<div class="gi-utility-body">';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'gi_eventbrite_save_settings' );
+        echo '<input type="hidden" name="action" value="gi_eventbrite_save_settings">';
+        echo '<label class="gi-label" for="gi_eventbrite_private_token">' . esc_html__( 'Private token', 'great-imports' ) . '</label>';
+        echo '<input type="password" class="regular-text gi-token-input" id="gi_eventbrite_private_token" name="gi_eventbrite_private_token" placeholder="' . esc_attr( $this->api_client->has_private_token() ? __( 'Configured — enter a new token to replace it', 'great-imports' ) : __( 'Paste private token', 'great-imports' ) ) . '">';
+        echo '<label class="gi-inline-check"><input type="checkbox" name="gi_eventbrite_clear_token" value="1"> ' . esc_html__( 'Clear saved token', 'great-imports' ) . '</label>';
+        submit_button( __( 'Save settings', 'great-imports' ), 'secondary', 'submit', false );
+        echo '</form>';
+        echo '</div></details>';
+    }
+
+    private function report_panel() {
+        echo '<details class="gi-utility-panel">';
+        echo '<summary><span>' . esc_html__( 'Exploratory Report', 'great-imports' ) . '</span></summary>';
+        echo '<div class="gi-utility-body">';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'gi_download_exploratory_report' );
+        echo '<input type="hidden" name="action" value="gi_download_exploratory_report">';
+        submit_button( __( 'Download report', 'great-imports' ), 'secondary', 'submit', false );
+        echo '</form>';
+        echo '</div></details>';
+    }
+
     private function manual_data_removal() {
-        echo '<div class="gi-card gi-danger-card"><details class="gi-danger-details"><summary>' . esc_html__( 'Danger Zone: Manual Data Removal', 'great-imports' ) . '</summary><div class="gi-danger-body">';
+        echo '<details class="gi-utility-panel gi-danger-panel">';
+        echo '<summary><span>' . esc_html__( 'Danger Zone: Manual Data Removal', 'great-imports' ) . '</span></summary>';
+        echo '<div class="gi-utility-body">';
         echo '<p><strong>' . esc_html__( 'Use this only when uninstall cleanup did not remove Great Imports data.', 'great-imports' ) . '</strong></p>';
         echo '<p>' . esc_html__( 'This removes only Great Imports-owned data. It does not delete Events Manager events, locations, tickets, media, categories, tags, or venue data.', 'great-imports' ) . '</p>';
         echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -237,7 +274,8 @@ final class GI_Admin {
         echo '<label class="gi-label">' . esc_html__( 'Type REMOVE to confirm', 'great-imports' ) . '</label>';
         echo '<input type="text" class="regular-text" name="gi_manual_cleanup_phrase" required> ';
         submit_button( __( 'Remove Great Imports Data', 'great-imports' ), 'delete', 'submit', false );
-        echo '</form></div></details></div>';
+        echo '</form>';
+        echo '</div></details>';
     }
 
     private function redirect_with_notice( $status, $message, $id = 0 ) {
