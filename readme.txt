@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.15
+Stable tag: 0.2.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,8 @@ Great Imports collects Eventbrite evidence into internal review candidates befor
 
 The main admin screen now puts URL collection and the Recent Event Candidates list first. Eventbrite settings, report download, and manual data removal are secondary collapsed utility panels.
 
+The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so the candidate rows follow WordPress admin list-table structure instead of custom table markup.
+
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
 Great Imports does not geocode or transfer latitude/longitude. A matched Events Manager location can be selected from the Location area for a later handoff; Events Manager still owns saving, updating, mapping, and location ID behavior.
@@ -24,6 +26,13 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.16 =
+* Added a dedicated GI_Candidate_List_Table class that extends WordPress' WP_List_Table for candidate rows.
+* Replaced the hand-built candidate table output in the admin class with the dedicated list table display path.
+* Kept the candidate list free of fake checkboxes, hidden rows, and embedded dry-run/editor markup.
+* Reduced candidate-list CSS so WordPress list-table styling carries the table instead of custom report-card styling.
+* No parser, evidence capture, ticket handling, report generation, storage, or Events Manager import behavior changes.
 
 = 0.2.15 =
 * Reworked the main admin page so URL collection and Recent Event Candidates are the primary workflow.
