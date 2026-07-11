@@ -121,7 +121,8 @@ final class GI_Admin {
             return;
         }
 
-        $candidates = ( new GI_Candidate_Store() )->get_recent_candidates( 20 );
+        $candidate_table = new GI_Candidate_List_Table( $this->preview_builder );
+        $candidate_table->prepare_items();
 
         echo '<div class="wrap gi-wrap gi-admin-screen">';
         $this->page_header();
@@ -130,7 +131,7 @@ final class GI_Admin {
         echo '<div class="gi-admin-grid">';
         echo '<main class="gi-main-column">';
         $this->collect_panel();
-        $this->candidates_panel( $candidates );
+        $this->candidates_panel( $candidate_table );
         echo '</main>';
 
         echo '<aside class="gi-utility-column" aria-label="' . esc_attr__( 'Great Imports utilities', 'great-imports' ) . '">';
@@ -170,66 +171,19 @@ final class GI_Admin {
         echo '</section>';
     }
 
-    private function candidates_panel( array $candidates ) {
-        $count = count( $candidates );
+    private function candidates_panel( GI_Candidate_List_Table $candidate_table ) {
+        $count = $candidate_table->get_item_count();
 
         echo '<section class="gi-list-panel" aria-labelledby="gi-candidates-heading">';
         echo '<div class="gi-list-header">';
         echo '<h2 id="gi-candidates-heading">' . esc_html__( 'Recent Event Candidates', 'great-imports' ) . '</h2>';
         echo '<span class="gi-count">' . esc_html( sprintf( _n( '%s item', '%s items', $count, 'great-imports' ), number_format_i18n( $count ) ) ) . '</span>';
         echo '</div>';
-
-        if ( empty( $candidates ) ) {
-            echo '<div class="gi-empty-list">';
-            echo '<p>' . esc_html__( 'No candidates have been collected yet.', 'great-imports' ) . '</p>';
-            echo '</div>';
-            echo '</section>';
-            return;
-        }
-
-        $this->candidate_table( $candidates );
+        echo '<form class="gi-candidates-form" method="get">';
+        echo '<input type="hidden" name="page" value="great-imports">';
+        $candidate_table->display();
+        echo '</form>';
         echo '</section>';
-    }
-
-    private function candidate_table( array $candidates ) {
-        echo '<table class="widefat striped gi-candidate-table">';
-        echo '<thead><tr>';
-        echo '<th class="column-primary">' . esc_html__( 'Title', 'great-imports' ) . '</th>';
-        echo '<th>' . esc_html__( 'Date', 'great-imports' ) . '</th>';
-        echo '<th>' . esc_html__( 'Venue', 'great-imports' ) . '</th>';
-        echo '<th>' . esc_html__( 'Source', 'great-imports' ) . '</th>';
-        echo '</tr></thead><tbody>';
-
-        foreach ( $candidates as $candidate ) {
-            $id      = (int) $candidate->ID;
-            $preview = $this->preview_builder->build_for_candidate( $candidate );
-            $title   = GI_Candidate_Review::value( $id, 'title', '', get_the_title( $candidate ) );
-            $date    = isset( $preview['public_event_fields']['start']['label'] ) ? (string) $preview['public_event_fields']['start']['label'] : GI_Candidate_Review::value( $id, 'start_date' );
-            $venue   = GI_Candidate_Review::value( $id, 'location_name' );
-            $source  = GI_Candidate_Review::source_value( $id, 'source_type' );
-            $url     = (string) get_post_meta( $id, '_gi_source_url', true );
-            $excerpt = wp_trim_words( wp_strip_all_tags( $candidate->post_content ), 28 );
-
-            echo '<tr class="gi-candidate-row">';
-            echo '<td class="title column-title column-primary">';
-            echo '<strong>' . esc_html( $title ? $title : __( '(no title)', 'great-imports' ) ) . '</strong>';
-
-            if ( $excerpt ) {
-                echo '<p class="gi-candidate-excerpt">' . esc_html( $excerpt ) . '</p>';
-            }
-
-            if ( $url ) {
-                echo '<div class="row-actions"><span><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Source', 'great-imports' ) . '</a></span></div>';
-            }
-
-            echo '</td>';
-            echo '<td>' . esc_html( $date ? $date : __( 'Not set', 'great-imports' ) ) . '</td>';
-            echo '<td>' . esc_html( $venue ? $venue : __( 'No venue', 'great-imports' ) ) . '</td>';
-            echo '<td>' . esc_html( $source ? $source : __( 'Source', 'great-imports' ) ) . '</td>';
-            echo '</tr>';
-        }
-
-        echo '</tbody></table>';
     }
 
     private function settings_panel() {
