@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.16
+Stable tag: 0.2.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.17 =
+* Removed the fixed admin-screen width cap and right utility sidebar so the candidate list uses the full available WordPress admin content width.
+* Moved the existing utility panels below the full-width candidate workflow and arranged them responsively without removing any controls.
+* Removed the candidate excerpt width cap so the title column can use the available table width.
+* No parser, evidence capture, candidate storage, report generation, ticket handling, scheduling, or Events Manager behavior changes.
 
 = 0.2.16 =
 * Added a dedicated GI_Candidate_List_Table class that extends WordPress' WP_List_Table for candidate rows.
