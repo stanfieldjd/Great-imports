@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.13
+Stable tag: 0.2.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,7 +13,7 @@ Full evidence-first Eventbrite importer with candidate review editing, manual cl
 
 Great Imports collects Eventbrite evidence into internal review candidates before any Events Manager save. The current workflow is review/dry-run only: it does not create Events Manager events or locations yet.
 
-The Recent Event Candidates table uses a WordPress-style list view. It no longer displays the embedded Open Candidate / Dry Run row under the table row.
+The Recent Event Candidates table uses a WordPress-style list view. It does not render an embedded Open Candidate / Dry Run row or hidden candidate editor content inside the list table.
 
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
@@ -24,6 +24,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.14 =
+* Removed the Open Candidate / Dry Run row and its embedded candidate editor markup from the candidate table output instead of hiding it with CSS.
+* Removed the unused admin CSS for the embedded candidate editor/dry-run area.
+* Removed the unused admin save hook for candidate review forms from the normal admin page.
+* No parser, evidence capture, ticket handling, report generation, storage, or Events Manager import behavior changes.
 
 = 0.2.13 =
 * Removed the visible Open Candidate / Dry Run row and the editor/details content rendered inside it from the Recent Event Candidates table.
@@ -78,7 +84,7 @@ This version does not schedule recurring imports, does not directly publish Even
 * Added confirmation checkbox and REMOVE phrase requirement before cleanup runs.
 
 = 0.2.5 =
-* Added source coverage audits to the Exploratory Report.
+* Added source page display reports to the Exploratory Report.
 * Added source page display reports with visible-text and screenshot-section style breakdowns.
 * Added structured comparison sections for captured, missing optional, missing required, excluded, and browser-rendering-gap data.
 * Fixed report-download redirects so failed report downloads no longer create unexpected admin-page output.
