@@ -183,3 +183,37 @@
         width: 100%;
     }
 }
+
+.gi-inline-editor > summary {
+    color: #2271b1;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.gi-inline-editor[open] > summary {
+    margin-bottom: 8px;
+}
+
+.gi-inline-editor form,
+.gi-location-match-form {
+    display: grid;
+    gap: 6px;
+}
+
+.gi-inline-editor label,
+.gi-inline-editor fieldset {
+    margin: 0;
+}
+
+.gi-inline-editor input[type="text"],
+.gi-location-match-form select {
+    box-sizing: border-box;
+    display: block;
+    max-width: 100%;
+    width: 100%;
+}
+
+.gi-inline-editor .button,
+.gi-location-match-form .button {
+    justify-self: start;
+}
