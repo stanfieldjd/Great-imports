@@ -186,7 +186,7 @@ final class GI_Candidate_List_Table extends WP_List_Table {
             'end_date'           => GI_Candidate_Review::value( $id, 'end_date' ),
             'venue'              => GI_Candidate_Review::value( $id, 'location_name' ),
             'location_name'      => GI_Candidate_Review::value( $id, 'location_name' ),
-            'location_address_1' => GI_Candidate_Review::value( $id, 'location_address_1' ),
+            'location_address_1' => GI_Candidate_Review::value( $id, 'location_address_1', '', GI_Candidate_Review::source_value( $id, 'location_address' ) ),
             'location_address_2' => GI_Candidate_Review::value( $id, 'location_address_2' ),
             'location_city'      => GI_Candidate_Review::value( $id, 'location_city' ),
             'location_state'     => GI_Candidate_Review::value( $id, 'location_state' ),
@@ -247,7 +247,7 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     private function candidate_address( $candidate_id ) {
         return $this->format_address(
             array(
-                'address'  => GI_Candidate_Review::value( $candidate_id, 'location_address_1' ),
+                'address'  => GI_Candidate_Review::value( $candidate_id, 'location_address_1', '', GI_Candidate_Review::source_value( $candidate_id, 'location_address' ) ),
                 'address2' => GI_Candidate_Review::value( $candidate_id, 'location_address_2' ),
                 'city'     => GI_Candidate_Review::value( $candidate_id, 'location_city' ),
                 'state'    => GI_Candidate_Review::value( $candidate_id, 'location_state' ),
