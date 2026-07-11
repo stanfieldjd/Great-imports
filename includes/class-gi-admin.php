@@ -187,7 +187,7 @@ final class GI_Admin {
     private function collect_panel() {
         echo '<section id="gi-collect-url" class="gi-collect-panel" aria-labelledby="gi-collect-heading">';
         echo '<div class="gi-panel-heading">';
-        echo '<h2 id="gi-collect-heading">' . esc_html__( 'Collect Eventbrite URL', 'great-imports' ) . '</h2>';
+        echo '<h2 id="gi-collect-heading">' . esc_html__( 'Source', 'great-imports' ) . '</h2>';
         echo '<span class="gi-stage-badge">' . esc_html__( 'Candidate only', 'great-imports' ) . '</span>';
         echo '</div>';
         echo '<form class="gi-collect-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -195,7 +195,7 @@ final class GI_Admin {
         echo '<input type="hidden" name="action" value="gi_eventbrite_import_once">';
         echo '<label class="screen-reader-text" for="gi_eventbrite_url">' . esc_html__( 'Eventbrite URL', 'great-imports' ) . '</label>';
         echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789" required> ';
-        submit_button( __( 'Collect evidence', 'great-imports' ), 'primary', 'submit', false );
+        submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
         echo '</form>';
         echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
         echo '</section>';
