@@ -26,6 +26,7 @@ require_once GREAT_IMPORTS_DIR . 'includes/class-gi-source-coverage-audit-builde
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-data-cleaner.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-list-table.php';
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
 
 final class GI_Plugin {
