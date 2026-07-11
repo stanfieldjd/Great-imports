@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.24
+Stable tag: 0.2.25
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,13 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.25 =
+* Fixed preview date/time formatting so offset-aware source times are not shifted by the WordPress timezone a second time.
+* Reused normalized candidate location fields in preview output and the assembled Location description section.
+* Added AggregateOffer low/high price fallback so source-backed price and currency appear in ticketing and the assembled description.
+* Preserved percent-encoded Eventbrite image and ticket URL components by using URL-specific normalization.
+* No Events Manager event, location, ticket, booking, scheduling, cleanup, or raw evidence changes.
 
 = 0.2.24 =
 * Reconciled composite fallback addresses with known city, state, ZIP, and country fields for candidate display and editing.
