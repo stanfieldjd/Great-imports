@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.11
+Stable tag: 0.2.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,6 +24,12 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, does not directly publish Events Manager events, and does not create Events Manager locations.
 
 == Changelog ==
+
+= 0.2.12 =
+* Tightened Recent Event Candidates styling to better match native WordPress list rows.
+* Hid the redundant Action column visually and kept actions under the candidate title.
+* Restyled the candidate open row so it no longer reads like a large separate report block.
+* CSS-only presentation pass; no parser, data model, ticket handling, or import behavior changes.
 
 = 0.2.11 =
 * Replaced bulky section-wide candidate editing with slimmer field-level edit rows.
