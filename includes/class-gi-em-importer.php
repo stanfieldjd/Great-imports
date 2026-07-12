@@ -194,7 +194,7 @@ final class GI_EM_Importer {
 
         return array(
             'schema_version' => 1,
-            'rule'           => 'Events Manager owns location geocoding/map coordinates. Great Imports records trace state but does not hand off, overwrite, or remove coordinates.',
+            'rule'           => 'Great Imports records the Events Manager location storage handoff and preserves existing coordinate data.'
             'started_at'     => current_time( 'mysql' ),
             'candidate_post_id' => absint( $candidate_id ),
             'before'         => array(
@@ -216,7 +216,6 @@ final class GI_EM_Importer {
                     'location_country'  => isset( $location_payload['location_country'] ) ? sanitize_text_field( (string) $location_payload['location_country'] ) : '',
                 ),
                 'payload_included_coordinates' => array_key_exists( 'location_latitude', $location_payload ) || array_key_exists( 'location_longitude', $location_payload ),
-                'geocoding_owner' => isset( $location_payload['geocoding_owner'] ) ? sanitize_key( $location_payload['geocoding_owner'] ) : '',
             ),
             'during'       => array(),
             'snapshots'    => array(),
@@ -289,7 +288,7 @@ final class GI_EM_Importer {
             'coordinate_state' => $coordinate_state,
             'has_complete_coordinates' => $has_complete_coordinates,
             'map_refresh_required' => $this->address_present( $address ) && ! $has_complete_coordinates,
-            'trace_note'  => 'Coordinate values are intentionally redacted. If Events Manager later produces coordinates, Great Imports should leave them untouched.',
+            'trace_note'  => 'Coordinate values are intentionally redacted. Existing coordinate values are preserved unless an explicit replacement decision is recorded.',
         );
     }
 
