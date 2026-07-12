@@ -53,7 +53,7 @@ final class GI_Import_Preview_Builder {
                 'location_postcode' => $location['postcode'],
                 'location_country'  => $location['country'],
                 'stage_room'        => $stage_room,
-                'handoff_note'      => __( 'Great Imports fills reviewed address fields only. Events Manager handles save/update/location ID/map behavior when an import step is later approved.', 'great-imports' ),
+                'handoff_note'      => __( 'Great Imports fills reviewed address fields only. Events Manager owns save/update/location ID/geocoding/map behavior when an import step is approved.', 'great-imports' ),
             ),
             'reviewer_decisions'  => $this->reviewer_decisions( $post_id ),
             'images'              => array(
@@ -95,8 +95,7 @@ final class GI_Import_Preview_Builder {
                 'reviewed_by_user_id'     => $this->review_meta( $post_id, 'reviewed_by' ),
             ),
             'excluded_public_data' => array(
-                __( 'latitude', 'great-imports' ),
-                __( 'longitude', 'great-imports' ),
+                __( 'latitude/longitude', 'great-imports' ),
                 __( 'geocoding', 'great-imports' ),
                 __( 'manual Events Manager location ID assignment unless reviewer selected an existing EM location for later import', 'great-imports' ),
                 __( 'raw scripts', 'great-imports' ),
@@ -408,8 +407,6 @@ final class GI_Import_Preview_Builder {
         $source_timezone      = $this->candidate_value( $post_id, 'timezone' );
         $timezone             = '' !== $source_timezone ? $source_timezone : wp_timezone_string();
         $timezone_provenance  = '' !== $source_timezone ? 'source' : 'wordpress_site_fallback';
-        $latitude             = $this->coordinate_value( $this->candidate_value( $post_id, 'location_latitude' ), 'latitude' );
-        $longitude            = $this->coordinate_value( $this->candidate_value( $post_id, 'location_longitude' ), 'longitude' );
         $errors               = array();
         $warnings             = array();
 
@@ -430,12 +427,6 @@ final class GI_Import_Preview_Builder {
         if ( ! $selected_location_id && '' === $location['name'] && '' === $location['address_1'] ) {
             $errors[] = __( 'A selected Events Manager location or source-backed location is required.', 'great-imports' );
         }
-        if ( ( '' === $latitude && '' !== $longitude ) || ( '' !== $latitude && '' === $longitude ) ) {
-            $warnings[] = __( 'Only one source coordinate was available; Events Manager coordinates will be left empty.', 'great-imports' );
-            $latitude   = '';
-            $longitude  = '';
-        }
-
         return array(
             'candidate_post_id' => absint( $post_id ),
             'ready_for_save'    => empty( $errors ),
@@ -464,9 +455,7 @@ final class GI_Import_Preview_Builder {
                 'location_state'    => $location['state'],
                 'location_postcode' => $location['postcode'],
                 'location_country'  => $location['country'],
-                'location_latitude' => $latitude,
-                'location_longitude' => $longitude,
-                'coordinate_source'  => '' !== $latitude && '' !== $longitude ? 'source' : '',
+                'geocoding_owner'   => 'events_manager',
             ),
             'ticketing'         => array(
                 'handling'   => 'description_only',
@@ -534,27 +523,6 @@ final class GI_Import_Preview_Builder {
         }
 
         return implode( ' ', $parts );
-    }
-
-    /**
-     * Keep only valid decimal source coordinates for Events Manager location saves.
-     *
-     * @param string $value Coordinate value.
-     * @param string $axis  Coordinate axis.
-     */
-    private function coordinate_value( $value, $axis ) {
-        $value = trim( (string) $value );
-        if ( '' === $value || ! is_numeric( $value ) ) {
-            return '';
-        }
-
-        $number = (float) $value;
-        $limit  = 'latitude' === $axis ? 90 : 180;
-        if ( $number < -$limit || $number > $limit ) {
-            return '';
-        }
-
-        return rtrim( rtrim( sprintf( '%.8F', $number ), '0' ), '.' );
     }
 
     private function overall_window_label( array $start, array $end ) {

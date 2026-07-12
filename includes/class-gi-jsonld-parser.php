@@ -29,11 +29,9 @@ final class GI_Jsonld_Parser {
             $event = $this->find_event_node( $decoded );
 
             if ( is_array( $event ) ) {
-                $meta_coordinates = $this->coordinates_from_html_meta( $html );
-
                 return array(
                     'success' => true,
-                    'event'   => $this->normalize_event( $event, $meta_coordinates ),
+                    'event'   => $this->normalize_event( $event ),
                     'error'   => '',
                 );
             }
@@ -138,10 +136,9 @@ final class GI_Jsonld_Parser {
      * @param array<string,mixed> $event Event JSON-LD node.
      * @return array<string,mixed>
      */
-    private function normalize_event( array $event, array $meta_coordinates = array() ) {
+    private function normalize_event( array $event ) {
         $location = $this->first_item( isset( $event['location'] ) ? $event['location'] : array() );
         $address  = is_array( $location ) && isset( $location['address'] ) && is_array( $location['address'] ) ? $location['address'] : array();
-        $geo      = is_array( $location ) && isset( $location['geo'] ) && is_array( $location['geo'] ) ? $location['geo'] : array();
         $offer    = $this->first_item( isset( $event['offers'] ) ? $event['offers'] : array() );
         $image    = $this->first_item( isset( $event['image'] ) ? $event['image'] : '' );
 
@@ -159,24 +156,6 @@ final class GI_Jsonld_Parser {
             'location_state'       => $this->string_value( isset( $address['addressRegion'] ) ? $address['addressRegion'] : '' ),
             'location_postal_code' => $this->string_value( isset( $address['postalCode'] ) ? $address['postalCode'] : '' ),
             'location_country'     => $this->string_value( isset( $address['addressCountry'] ) ? $address['addressCountry'] : '' ),
-            'location_latitude'    => $this->coordinate_value(
-                $this->first_nonempty(
-                    array(
-                        isset( $geo['latitude'] ) ? $this->string_value( $geo['latitude'] ) : '',
-                        isset( $meta_coordinates['latitude'] ) ? $meta_coordinates['latitude'] : '',
-                    )
-                ),
-                'latitude'
-            ),
-            'location_longitude'   => $this->coordinate_value(
-                $this->first_nonempty(
-                    array(
-                        isset( $geo['longitude'] ) ? $this->string_value( $geo['longitude'] ) : '',
-                        isset( $meta_coordinates['longitude'] ) ? $meta_coordinates['longitude'] : '',
-                    )
-                ),
-                'longitude'
-            ),
             'ticket_url'        => $this->url_value( is_array( $offer ) && isset( $offer['url'] ) ? $offer['url'] : '' ),
             'price'             => $this->offer_price( $offer ),
             'price_currency'    => $this->string_value( is_array( $offer ) && isset( $offer['priceCurrency'] ) ? $offer['priceCurrency'] : '' ),
@@ -216,35 +195,6 @@ final class GI_Jsonld_Parser {
     }
 
     /**
-     * Extract Eventbrite's page-level location coordinate meta tags.
-     *
-     * @param string $html HTML source.
-     * @return array{latitude:string,longitude:string}
-     */
-    private function coordinates_from_html_meta( $html ) {
-        $coordinates = array(
-            'latitude'  => '',
-            'longitude' => '',
-        );
-
-        if ( preg_match_all( '/<meta\b[^>]*>/is', (string) $html, $matches ) ) {
-            foreach ( $matches[0] as $tag ) {
-                $property = strtolower( $this->attribute_value( $tag, 'property' ) );
-                $content  = $this->attribute_value( $tag, 'content' );
-
-                if ( 'event:location:latitude' === $property ) {
-                    $coordinates['latitude'] = $this->coordinate_value( $content, 'latitude' );
-                }
-                if ( 'event:location:longitude' === $property ) {
-                    $coordinates['longitude'] = $this->coordinate_value( $content, 'longitude' );
-                }
-            }
-        }
-
-        return $coordinates;
-    }
-
-    /**
      * Return first list item or scalar value.
      *
      * @param mixed $value Input value.
@@ -272,42 +222,6 @@ final class GI_Jsonld_Parser {
     }
 
     /**
-     * Return the first non-empty scalar value from a list.
-     *
-     * @param array<int,string> $values Candidate values.
-     */
-    private function first_nonempty( array $values ) {
-        foreach ( $values as $value ) {
-            if ( '' !== trim( (string) $value ) ) {
-                return $value;
-            }
-        }
-
-        return '';
-    }
-
-    /**
-     * Keep only valid decimal source coordinates for Events Manager location saves.
-     *
-     * @param string $value Coordinate value.
-     * @param string $axis  Coordinate axis.
-     */
-    private function coordinate_value( $value, $axis ) {
-        $value = trim( (string) $value );
-        if ( '' === $value || ! is_numeric( $value ) ) {
-            return '';
-        }
-
-        $number = (float) $value;
-        $limit  = 'latitude' === $axis ? 90 : 180;
-        if ( $number < -$limit || $number > $limit ) {
-            return '';
-        }
-
-        return rtrim( rtrim( sprintf( '%.8F', $number ), '0' ), '.' );
-    }
-
-    /**
      * Format a schema.org PostalAddress into an address string.
      *
      * @param mixed $address Address node.
@@ -329,19 +243,5 @@ final class GI_Jsonld_Parser {
         }
 
         return implode( ', ', array_filter( $parts ) );
-    }
-
-    /**
-     * Read an attribute from a tag.
-     *
-     * @param string $tag       HTML tag.
-     * @param string $attribute Attribute name.
-     */
-    private function attribute_value( $tag, $attribute ) {
-        if ( preg_match( '/' . preg_quote( $attribute, '/' ) . '\s*=\s*(["\'])(.*?)\1/is', $tag, $match ) ) {
-            return html_entity_decode( $match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-        }
-
-        return '';
     }
 }

@@ -41,24 +41,6 @@ final class GI_Eventbrite_API_Normalizer {
             'location_state'        => $this->nested_string( $event, array( 'venue', 'address', 'region' ) ),
             'location_postal_code'  => $this->nested_string( $event, array( 'venue', 'address', 'postal_code' ) ),
             'location_country'      => $this->nested_string( $event, array( 'venue', 'address', 'country' ) ),
-            'location_latitude'     => $this->coordinate_value(
-                $this->first_nonempty(
-                    array(
-                        $this->nested_string( $event, array( 'venue', 'latitude' ) ),
-                        $this->nested_string( $event, array( 'venue', 'address', 'latitude' ) ),
-                    )
-                ),
-                'latitude'
-            ),
-            'location_longitude'    => $this->coordinate_value(
-                $this->first_nonempty(
-                    array(
-                        $this->nested_string( $event, array( 'venue', 'longitude' ) ),
-                        $this->nested_string( $event, array( 'venue', 'address', 'longitude' ) ),
-                    )
-                ),
-                'longitude'
-            ),
             'ticket_url'            => esc_url_raw( $this->string_value( isset( $event['url'] ) ? $event['url'] : '' ) ),
             'price'                 => $this->nested_string( $event, array( 'ticket_availability', 'minimum_ticket_price', 'major_value' ) ),
             'price_currency'        => $this->nested_string( $event, array( 'ticket_availability', 'minimum_ticket_price', 'currency' ) ),
@@ -127,41 +109,5 @@ final class GI_Eventbrite_API_Normalizer {
         }
 
         return implode( ', ', array_filter( $parts ) );
-    }
-
-    /**
-     * Return the first non-empty scalar value from a list.
-     *
-     * @param array<int,string> $values Candidate values.
-     */
-    private function first_nonempty( array $values ) {
-        foreach ( $values as $value ) {
-            if ( '' !== trim( (string) $value ) ) {
-                return $value;
-            }
-        }
-
-        return '';
-    }
-
-    /**
-     * Keep only valid decimal source coordinates for Events Manager location saves.
-     *
-     * @param string $value Coordinate value.
-     * @param string $axis  Coordinate axis.
-     */
-    private function coordinate_value( $value, $axis ) {
-        $value = trim( (string) $value );
-        if ( '' === $value || ! is_numeric( $value ) ) {
-            return '';
-        }
-
-        $number = (float) $value;
-        $limit  = 'latitude' === $axis ? 90 : 180;
-        if ( $number < -$limit || $number > $limit ) {
-            return '';
-        }
-
-        return rtrim( rtrim( sprintf( '%.8F', $number ), '0' ), '.' );
     }
 }

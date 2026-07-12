@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.31
+Stable tag: 0.2.32
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,13 +19,19 @@ The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so
 
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
-Great Imports does not run its own geocoder. When Eventbrite source evidence includes valid latitude/longitude, those coordinates are transferred privately into newly created Events Manager locations so the map fields are populated during import. A matched Events Manager location can also be selected from the Location area.
+Great Imports does not run its own geocoder and does not hand source coordinates to Events Manager. It saves reviewed address fields like a manual location entry so Events Manager owns geocoding and map behavior. A matched Events Manager location can also be selected from the Location area.
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.32 =
+* Supersedes the 0.2.29-0.2.31 coordinate-transfer behavior.
+* Stops handing source latitude/longitude into Events Manager location saves.
+* Saves reviewed location address fields only so Events Manager owns geocoding and map behavior, matching manual location-entry expectations.
+* Keeps source coordinate evidence available to the evidence layer/report sanitizer, but out of the Events Manager import payload.
 
 = 0.2.31 =
 * Updates missing latitude/longitude on Great Imports-created existing Events Manager locations during repeat import when source-backed coordinates are available.
