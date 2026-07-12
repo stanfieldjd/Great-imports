@@ -55,18 +55,13 @@ This version does not schedule recurring imports, directly publish Events Manage
 * Historical build superseded by 0.2.36 workflow cleanup.
 
 = 0.2.31 =
-* Updates missing latitude/longitude on Great Imports-created existing Events Manager locations during repeat import when source-backed coordinates are available.
-* Does not overwrite selected/matched Events Manager locations or existing locations that already have valid coordinates.
+* Historical coordinate experiment superseded by the 0.2.38 Events Manager storage handoff repair.
 
 = 0.2.30 =
-* Supersedes 0.2.29 so the GitHub release package is created from the complete coordinate-transfer source state.
-* No behavior change from the completed coordinate-transfer patch.
+* Historical coordinate experiment superseded by the 0.2.38 Events Manager storage handoff repair.
 
 = 0.2.29 =
-* Captures valid source-backed venue latitude/longitude from Eventbrite API, schema.org geo, and Eventbrite page meta tags.
-* Adds private coordinate fields to the Events Manager payload and newly created EM_Location objects.
-* Keeps raw coordinates out of exploratory reports while no longer labeling them as unused.
-* Does not add a separate geocoder, OSM/Nominatim calls, ticket/bookings changes, publishing, scheduling, or image transfer.
+* Historical coordinate experiment superseded by the 0.2.38 Events Manager storage handoff repair.
 
 = 0.2.28 =
 * Added a visible Import to Events Manager button to every candidate row.
