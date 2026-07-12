@@ -67,11 +67,14 @@ final class GI_EM_Importer {
         update_post_meta( $candidate_id, '_gi_em_event_id', $event_result['event_id'] );
         update_post_meta( $candidate_id, '_gi_em_location_id', $location_result['location_id'] );
         update_post_meta( $candidate_id, '_gi_imported_at', current_time( 'mysql' ) );
-        $this->finish_trace( $candidate_id, $trace, true, sprintf( __( 'Candidate imported to Events Manager draft event %d.', 'great-imports' ), $event_result['event_id'] ) );
+        update_post_meta( $candidate_id, '_gi_candidate_status', 'imported' );
+        update_post_meta( $candidate_id, '_gi_review_review_status', 'imported' );
+        $success_message = sprintf( __( 'Candidate imported or updated in Events Manager event %d.', 'great-imports' ), $event_result['event_id'] );
+        $this->finish_trace( $candidate_id, $trace, true, $success_message );
 
         return array(
             'success'     => true,
-            'message'     => sprintf( __( 'Candidate imported to Events Manager draft event %d.', 'great-imports' ), $event_result['event_id'] ),
+            'message'     => $success_message,
             'event_id'    => $event_result['event_id'],
             'location_id' => $location_result['location_id'],
         );
