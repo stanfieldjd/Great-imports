@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.38
+Stable tag: 0.2.39
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.39 =
+* Marks candidates as imported after a successful Events Manager save.
+* Shows imported candidates with their Events Manager event ID and changes repeat action wording to Update Events Manager.
+* Updates the import success message so it no longer implies the event must be a draft.
 
 = 0.2.38 =
 * Captures explicit Eventbrite venue and schema.org GeoCoordinates values as private source evidence.
