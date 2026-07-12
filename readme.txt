@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.36
+Stable tag: 0.2.37
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,10 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.37 =
+* Removes the stale map-refresh-required field from Events Manager import traces and exploratory reports.
+* Keeps the active workflow focused on Events Manager storage handoff instead of the discarded browser/map-refresh workflow.
 
 = 0.2.36 =
 * Removes the Events Manager browser location readiness workflow from Great Imports.
