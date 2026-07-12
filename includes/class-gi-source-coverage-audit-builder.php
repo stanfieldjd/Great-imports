@@ -133,7 +133,7 @@ final class GI_Source_Coverage_Audit_Builder {
                 'Excluded public fields',
                 $this->has_nonempty_array_path( $import_preview, array( 'excluded_public_data' ) ),
                 array( 'import_previews.excluded_public_data' ),
-                'Report must show excluded fields such as latitude/longitude, raw scripts, raw headers, and public source attribution.'
+                'Report must show excluded or redacted fields such as raw latitude/longitude values, raw scripts, raw headers, and public source attribution.'
             ),
         );
 
