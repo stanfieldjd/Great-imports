@@ -36,20 +36,13 @@ This version does not schedule recurring imports, directly publish Events Manage
 * Historical build superseded by 0.2.36 workflow cleanup.
 
 = 0.2.34 =
-* Adds browser-side Events Manager location edit tracing around the map refresh alert/OK flow.
-* Reports coordinate-field presence before OK, immediately after OK, after short delays, on hidden coordinate field changes, and before form submit.
-* Keeps raw coordinate values redacted and does not change Events Manager save, geocoding, map, ticket, publishing, scheduling, or import behavior.
+* Historical build superseded by 0.2.36 workflow cleanup.
 
 = 0.2.33 =
-* Adds Events Manager location trace reporting with before/during/after import snapshots.
-* Reports Events Manager event/location IDs, location post/admin URL, address payload, coordinate presence/absence, and map-refresh-needed state without exporting raw coordinate values.
-* Does not change import behavior, coordinate handoff, ticket handling, publishing, scheduling, images, or geocoding.
+* Historical build superseded by 0.2.36 workflow cleanup.
 
 = 0.2.32 =
-* Supersedes the 0.2.29-0.2.31 coordinate-transfer behavior.
-* Stops handing source latitude/longitude into Events Manager location saves.
-* Saves reviewed location address fields only so Events Manager owns geocoding and map behavior, matching manual location-entry expectations.
-* Keeps source coordinate evidence available to the evidence layer/report sanitizer, but out of the Events Manager import payload.
+* Historical build superseded by 0.2.36 workflow cleanup.
 
 = 0.2.31 =
 * Updates missing latitude/longitude on Great Imports-created existing Events Manager locations during repeat import when source-backed coordinates are available.
