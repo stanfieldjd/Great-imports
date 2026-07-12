@@ -142,7 +142,7 @@ final class GI_EM_Importer {
             return $this->failure( $this->object_error( $location, __( 'Events Manager location could not be saved.', 'great-imports' ) ) );
         }
 
-        $sync = $this->sync_location_storage( absint( $location->location_id ), $payload, true );
+        $sync = $this->sync_location_storage( absint( $location->location_id ), $payload, true, ! empty( $location->post_id ) ? absint( $location->post_id ) : 0 );
         if ( empty( $sync['success'] ) ) {
             return $this->failure( $sync['message'] );
         }
@@ -164,12 +164,13 @@ final class GI_EM_Importer {
         );
     }
 
-    private function sync_location_storage( $location_id, array $payload, $update_address ) {
+    private function sync_location_storage( $location_id, array $payload, $update_address, $fallback_post_id = 0 ) {
         global $wpdb;
 
         $location_id = absint( $location_id );
         $row         = $this->raw_location_row( $location_id );
-        $post_id     = is_array( $row ) && ! empty( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+        $row_exists  = is_array( $row ) && ! empty( $row );
+        $post_id     = $row_exists && ! empty( $row['post_id'] ) ? absint( $row['post_id'] ) : absint( $fallback_post_id );
 
         if ( ! $post_id ) {
             return array(
@@ -190,7 +191,7 @@ final class GI_EM_Importer {
         $coordinate_pair = $existing_pair['complete'] ? $existing_pair : $source_pair;
         $coordinate_origin = $existing_pair['complete'] ? 'existing_events_manager_coordinates' : ( $source_pair['complete'] ? 'source_coordinate_evidence' : 'none' );
         $meta_complete  = $this->stored_pair_complete( get_post_meta( $post_id, '_location_latitude', true ), get_post_meta( $post_id, '_location_longitude', true ) );
-        $table_complete = is_array( $row ) && $this->stored_pair_complete( isset( $row['location_latitude'] ) ? $row['location_latitude'] : '', isset( $row['location_longitude'] ) ? $row['location_longitude'] : '' );
+        $table_complete = $row_exists && $this->stored_pair_complete( isset( $row['location_latitude'] ) ? $row['location_latitude'] : '', isset( $row['location_longitude'] ) ? $row['location_longitude'] : '' );
 
         $trace = array(
             'address_storage' => $update_address ? 'synced' : 'preserved_existing_selected_location',
@@ -272,7 +273,7 @@ final class GI_EM_Importer {
             }
 
             if ( ! empty( $table_data ) ) {
-                if ( is_array( $row ) ) {
+                if ( $row_exists ) {
                     $updated = $wpdb->update( $table, $table_data, array( 'location_id' => $location_id ) );
                     if ( false === $updated ) {
                         return array(
@@ -343,8 +344,8 @@ final class GI_EM_Importer {
             );
         }
 
-        $table_latitude  = is_array( $row ) && isset( $row['location_latitude'] ) ? $this->coordinate_value( $row['location_latitude'] ) : '';
-        $table_longitude = is_array( $row ) && isset( $row['location_longitude'] ) ? $this->coordinate_value( $row['location_longitude'] ) : '';
+        $table_latitude  = is_array( $row ) && ! empty( $row ) && isset( $row['location_latitude'] ) ? $this->coordinate_value( $row['location_latitude'] ) : '';
+        $table_longitude = is_array( $row ) && ! empty( $row ) && isset( $row['location_longitude'] ) ? $this->coordinate_value( $row['location_longitude'] ) : '';
 
         return array(
             'complete'  => '' !== $table_latitude && '' !== $table_longitude,
