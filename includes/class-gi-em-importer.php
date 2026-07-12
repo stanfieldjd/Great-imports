@@ -287,7 +287,6 @@ final class GI_EM_Importer {
             'address'     => $address,
             'coordinate_state' => $coordinate_state,
             'has_complete_coordinates' => $has_complete_coordinates,
-            'map_refresh_required' => $this->address_present( $address ) && ! $has_complete_coordinates,
             'trace_note'  => 'Coordinate values are intentionally redacted. Existing coordinate values are preserved unless an explicit replacement decision is recorded.',
         );
     }
