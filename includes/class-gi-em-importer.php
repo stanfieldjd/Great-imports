@@ -81,22 +81,26 @@ final class GI_EM_Importer {
         $selected_id = isset( $payload['em_location_id'] ) ? absint( $payload['em_location_id'] ) : 0;
 
         if ( $selected_id ) {
-            global $wpdb;
-            $table = $wpdb->prefix . 'em_locations';
             $before = $this->location_snapshot( $selected_id );
-            $found = $wpdb->get_var( $wpdb->prepare( "SELECT location_id FROM {$table} WHERE location_id = %d", $selected_id ) );
-            if ( ! $found ) {
+            if ( empty( $before['found'] ) ) {
                 return $this->failure( __( 'Selected Events Manager location no longer exists.', 'great-imports' ) );
             }
+
+            $sync = $this->sync_location_storage( $selected_id, $payload, false );
+            if ( empty( $sync['success'] ) ) {
+                return $this->failure( $sync['message'] );
+            }
+
             return array(
                 'success'         => true,
-                'location_id'     => $selected_id,
+                'location_id'     => absint( $sync['location_id'] ),
                 'created'         => false,
                 'before_snapshot' => $before,
-                'after_snapshot'  => $this->location_snapshot( $selected_id ),
+                'after_snapshot'  => $this->location_snapshot( $sync['location_id'] ),
                 'trace'           => array(
-                    'strategy' => 'selected_existing',
-                    'source'   => 'reviewer_selected_em_location',
+                    'strategy'     => 'selected_existing',
+                    'source'       => 'reviewer_selected_em_location',
+                    'storage_sync' => $sync['trace'],
                 ),
             );
         }
@@ -104,17 +108,25 @@ final class GI_EM_Importer {
         $existing_id = absint( get_post_meta( $candidate_id, '_gi_em_location_id', true ) );
         if ( $existing_id ) {
             $before = $this->location_snapshot( $existing_id );
-            return array(
-                'success'         => true,
-                'location_id'     => $existing_id,
-                'created'         => false,
-                'before_snapshot' => $before,
-                'after_snapshot'  => $this->location_snapshot( $existing_id ),
-                'trace'           => array(
-                    'strategy' => 'reuse_previous_import',
-                    'source'   => 'candidate_em_location_id',
-                ),
-            );
+            if ( ! empty( $before['found'] ) ) {
+                $sync = $this->sync_location_storage( $existing_id, $payload, true );
+                if ( empty( $sync['success'] ) ) {
+                    return $this->failure( $sync['message'] );
+                }
+
+                return array(
+                    'success'         => true,
+                    'location_id'     => absint( $sync['location_id'] ),
+                    'created'         => false,
+                    'before_snapshot' => $before,
+                    'after_snapshot'  => $this->location_snapshot( $sync['location_id'] ),
+                    'trace'           => array(
+                        'strategy'     => 'reuse_previous_import',
+                        'source'       => 'candidate_em_location_id',
+                        'storage_sync' => $sync['trace'],
+                    ),
+                );
+            }
         }
 
         $location = new EM_Location();
@@ -130,20 +142,258 @@ final class GI_EM_Importer {
             return $this->failure( $this->object_error( $location, __( 'Events Manager location could not be saved.', 'great-imports' ) ) );
         }
 
+        $sync = $this->sync_location_storage( absint( $location->location_id ), $payload, true );
+        if ( empty( $sync['success'] ) ) {
+            return $this->failure( $sync['message'] );
+        }
+
         return array(
             'success'         => true,
-            'location_id'     => absint( $location->location_id ),
+            'location_id'     => absint( $sync['location_id'] ),
             'created'         => true,
             'before_snapshot' => array(
                 'found' => false,
                 'note'  => 'New Events Manager location; no before snapshot existed.',
             ),
-            'after_snapshot'  => $this->location_snapshot( $location->location_id ),
+            'after_snapshot'  => $this->location_snapshot( $sync['location_id'] ),
             'trace'           => array(
-                'strategy' => 'create',
-                'source'   => 'reviewed_address_payload',
+                'strategy'     => 'create',
+                'source'       => 'reviewed_address_payload',
+                'storage_sync' => $sync['trace'],
             ),
         );
+    }
+
+    private function sync_location_storage( $location_id, array $payload, $update_address ) {
+        global $wpdb;
+
+        $location_id = absint( $location_id );
+        $row         = $this->raw_location_row( $location_id );
+        $post_id     = is_array( $row ) && ! empty( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+
+        if ( ! $post_id ) {
+            return array(
+                'success'     => false,
+                'message'     => __( 'Events Manager location storage row could not be resolved.', 'great-imports' ),
+                'location_id' => $location_id,
+                'trace'       => array( 'resolved_post_id' => 0 ),
+            );
+        }
+
+        $table        = $this->location_table_name();
+        $table_exists = $this->location_table_exists( $table );
+        $post         = get_post( $post_id );
+        $blog_id      = is_multisite() ? get_current_blog_id() : 0;
+        $address      = $this->sanitized_location_payload( $payload );
+        $source_pair  = $this->payload_coordinate_pair( $payload );
+        $existing_pair = $this->existing_coordinate_pair( $post_id, $row );
+        $coordinate_pair = $existing_pair['complete'] ? $existing_pair : $source_pair;
+        $coordinate_origin = $existing_pair['complete'] ? 'existing_events_manager_coordinates' : ( $source_pair['complete'] ? 'source_coordinate_evidence' : 'none' );
+        $meta_complete  = $this->stored_pair_complete( get_post_meta( $post_id, '_location_latitude', true ), get_post_meta( $post_id, '_location_longitude', true ) );
+        $table_complete = is_array( $row ) && $this->stored_pair_complete( isset( $row['location_latitude'] ) ? $row['location_latitude'] : '', isset( $row['location_longitude'] ) ? $row['location_longitude'] : '' );
+
+        $trace = array(
+            'address_storage' => $update_address ? 'synced' : 'preserved_existing_selected_location',
+            'table_exists'    => $table_exists,
+            'post_meta_written' => array(),
+            'table_written'   => false,
+            'table_inserted'  => false,
+            'coordinates'     => array(
+                'payload_complete' => ! empty( $source_pair['complete'] ),
+                'existing_complete' => ! empty( $existing_pair['complete'] ),
+                'origin'           => $coordinate_origin,
+                'values_redacted'  => true,
+                'source'           => isset( $payload['coordinate_source'] ) ? sanitize_text_field( (string) $payload['coordinate_source'] ) : '',
+                'evidence_path'    => isset( $payload['coordinate_evidence_path'] ) ? sanitize_text_field( (string) $payload['coordinate_evidence_path'] ) : '',
+                'write_decision'   => 'none',
+            ),
+        );
+
+        if ( $update_address ) {
+            update_post_meta( $post_id, '_blog_id', $blog_id );
+            update_post_meta( $post_id, '_location_address', $address['location_address'] );
+            update_post_meta( $post_id, '_location_town', $address['location_town'] );
+            update_post_meta( $post_id, '_location_state', $address['location_state'] );
+            update_post_meta( $post_id, '_location_postcode', $address['location_postcode'] );
+            update_post_meta( $post_id, '_location_region', $address['location_state'] );
+            update_post_meta( $post_id, '_location_country', $address['location_country'] );
+            update_post_meta( $post_id, '_location_status', 1 );
+            $trace['post_meta_written'] = array( 'address', 'town', 'state', 'postcode', 'region', 'country', 'status' );
+        }
+
+        $write_coordinates_to_meta  = ! empty( $coordinate_pair['complete'] ) && ! $meta_complete;
+        $write_coordinates_to_table = ! empty( $coordinate_pair['complete'] ) && ! $table_complete;
+
+        if ( $write_coordinates_to_meta ) {
+            update_post_meta( $post_id, '_location_latitude', $coordinate_pair['latitude'] );
+            update_post_meta( $post_id, '_location_longitude', $coordinate_pair['longitude'] );
+            $trace['post_meta_written'][] = 'coordinates';
+        }
+
+        if ( ! empty( $coordinate_pair['complete'] ) ) {
+            if ( $existing_pair['complete'] && $source_pair['complete'] ) {
+                $trace['coordinates']['write_decision'] = 'preserved_existing_complete_coordinates';
+            } elseif ( $write_coordinates_to_meta || $write_coordinates_to_table ) {
+                $trace['coordinates']['write_decision'] = 'wrote_missing_coordinate_surface';
+            } else {
+                $trace['coordinates']['write_decision'] = 'already_complete';
+            }
+        } elseif ( ! empty( $source_pair['incomplete'] ) ) {
+            $trace['coordinates']['write_decision'] = 'skipped_incomplete_source_coordinates';
+        } else {
+            $trace['coordinates']['write_decision'] = 'no_coordinate_pair_available';
+        }
+
+        if ( $table_exists ) {
+            $table_data = array();
+
+            if ( $update_address ) {
+                $table_data = array(
+                    'post_id'            => $post_id,
+                    'blog_id'            => $blog_id,
+                    'location_slug'      => $post ? sanitize_title( $post->post_name ) : '',
+                    'location_name'      => $address['location_name'],
+                    'location_owner'     => $post ? absint( $post->post_author ) : get_current_user_id(),
+                    'location_address'   => $address['location_address'],
+                    'location_town'      => $address['location_town'],
+                    'location_state'     => $address['location_state'],
+                    'location_postcode'  => $address['location_postcode'],
+                    'location_region'    => $address['location_state'],
+                    'location_country'   => $address['location_country'],
+                    'post_content'       => $post ? $post->post_content : '',
+                    'location_status'    => 1,
+                    'location_private'   => $post && 'private' === $post->post_status ? 1 : 0,
+                );
+            }
+
+            if ( $write_coordinates_to_table ) {
+                $table_data['location_latitude'] = $coordinate_pair['latitude'];
+                $table_data['location_longitude'] = $coordinate_pair['longitude'];
+            }
+
+            if ( ! empty( $table_data ) ) {
+                if ( is_array( $row ) ) {
+                    $updated = $wpdb->update( $table, $table_data, array( 'location_id' => $location_id ) );
+                    if ( false === $updated ) {
+                        return array(
+                            'success'     => false,
+                            'message'     => __( 'Events Manager location table could not be updated.', 'great-imports' ),
+                            'location_id' => $location_id,
+                            'trace'       => $trace,
+                        );
+                    }
+                    $trace['table_written'] = true;
+                } else {
+                    $inserted = $wpdb->insert( $table, $table_data );
+                    if ( false === $inserted ) {
+                        return array(
+                            'success'     => false,
+                            'message'     => __( 'Events Manager location table could not be inserted.', 'great-imports' ),
+                            'location_id' => $location_id,
+                            'trace'       => $trace,
+                        );
+                    }
+                    $location_id = absint( $wpdb->insert_id );
+                    update_post_meta( $post_id, '_location_id', $location_id );
+                    $trace['table_written']  = true;
+                    $trace['table_inserted'] = true;
+                }
+            }
+        }
+
+        return array(
+            'success'     => true,
+            'message'     => '',
+            'location_id' => $location_id,
+            'trace'       => $trace,
+        );
+    }
+
+    private function sanitized_location_payload( array $payload ) {
+        return array(
+            'location_name'     => isset( $payload['location_name'] ) ? sanitize_text_field( (string) $payload['location_name'] ) : '',
+            'location_address'  => isset( $payload['location_address'] ) ? sanitize_text_field( (string) $payload['location_address'] ) : '',
+            'location_town'     => isset( $payload['location_town'] ) ? sanitize_text_field( (string) $payload['location_town'] ) : '',
+            'location_state'    => isset( $payload['location_state'] ) ? sanitize_text_field( (string) $payload['location_state'] ) : '',
+            'location_postcode' => isset( $payload['location_postcode'] ) ? sanitize_text_field( (string) $payload['location_postcode'] ) : '',
+            'location_country'  => isset( $payload['location_country'] ) ? sanitize_text_field( (string) $payload['location_country'] ) : '',
+        );
+    }
+
+    private function payload_coordinate_pair( array $payload ) {
+        $latitude  = isset( $payload['location_latitude'] ) ? $this->coordinate_value( $payload['location_latitude'] ) : '';
+        $longitude = isset( $payload['location_longitude'] ) ? $this->coordinate_value( $payload['location_longitude'] ) : '';
+
+        return array(
+            'complete'  => '' !== $latitude && '' !== $longitude,
+            'incomplete' => ( '' !== $latitude && '' === $longitude ) || ( '' === $latitude && '' !== $longitude ),
+            'latitude'  => $latitude,
+            'longitude' => $longitude,
+        );
+    }
+
+    private function existing_coordinate_pair( $post_id, $row ) {
+        $meta_latitude  = $this->coordinate_value( get_post_meta( $post_id, '_location_latitude', true ) );
+        $meta_longitude = $this->coordinate_value( get_post_meta( $post_id, '_location_longitude', true ) );
+        if ( '' !== $meta_latitude && '' !== $meta_longitude ) {
+            return array(
+                'complete'  => true,
+                'latitude'  => $meta_latitude,
+                'longitude' => $meta_longitude,
+            );
+        }
+
+        $table_latitude  = is_array( $row ) && isset( $row['location_latitude'] ) ? $this->coordinate_value( $row['location_latitude'] ) : '';
+        $table_longitude = is_array( $row ) && isset( $row['location_longitude'] ) ? $this->coordinate_value( $row['location_longitude'] ) : '';
+
+        return array(
+            'complete'  => '' !== $table_latitude && '' !== $table_longitude,
+            'latitude'  => $table_latitude,
+            'longitude' => $table_longitude,
+        );
+    }
+
+    private function coordinate_value( $value ) {
+        $value = trim( (string) $value );
+        if ( '' === $value || ! is_numeric( $value ) ) {
+            return '';
+        }
+
+        return number_format( round( (float) $value, 6 ), 6, '.', '' );
+    }
+
+    private function stored_pair_complete( $latitude, $longitude ) {
+        return '' !== $this->coordinate_value( $latitude ) && '' !== $this->coordinate_value( $longitude );
+    }
+
+    private function location_table_name() {
+        global $wpdb;
+
+        return defined( 'EM_LOCATIONS_TABLE' ) ? EM_LOCATIONS_TABLE : $wpdb->prefix . 'em_locations';
+    }
+
+    private function location_table_exists( $table ) {
+        global $wpdb;
+
+        return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
+    }
+
+    private function raw_location_row( $location_id ) {
+        global $wpdb;
+
+        $location_id = absint( $location_id );
+        if ( ! $location_id ) {
+            return array();
+        }
+
+        $table = $this->location_table_name();
+        if ( ! $this->location_table_exists( $table ) ) {
+            return array();
+        }
+
+        $row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE location_id = %d", $location_id ), ARRAY_A );
+
+        return is_array( $row ) ? $row : array();
     }
 
     private function save_event( $candidate_id, array $payload, $location_id ) {
@@ -216,6 +466,12 @@ final class GI_EM_Importer {
                     'location_country'  => isset( $location_payload['location_country'] ) ? sanitize_text_field( (string) $location_payload['location_country'] ) : '',
                 ),
                 'payload_included_coordinates' => array_key_exists( 'location_latitude', $location_payload ) || array_key_exists( 'location_longitude', $location_payload ),
+                'coordinate_payload' => array(
+                    'complete'      => isset( $location_payload['location_latitude'], $location_payload['location_longitude'] ) && '' !== (string) $location_payload['location_latitude'] && '' !== (string) $location_payload['location_longitude'],
+                    'values_redacted' => true,
+                    'source'        => isset( $location_payload['coordinate_source'] ) ? sanitize_text_field( (string) $location_payload['coordinate_source'] ) : '',
+                    'evidence_path' => isset( $location_payload['coordinate_evidence_path'] ) ? sanitize_text_field( (string) $location_payload['coordinate_evidence_path'] ) : '',
+                ),
             ),
             'during'       => array(),
             'snapshots'    => array(),
@@ -320,11 +576,7 @@ final class GI_EM_Importer {
     }
 
     private function coordinate_present( $value ) {
-        $value = trim( (string) $value );
-        if ( '' === $value || ! is_numeric( $value ) ) {
-            return false;
-        }
-        return (float) $value !== 0.0;
+        return '' !== $this->coordinate_value( $value );
     }
 
     private function address_present( array $address ) {
