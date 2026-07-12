@@ -8,6 +8,7 @@
 
     var startedAt = Date.now();
     var lastState = '';
+    var notice;
 
     function field(id) {
         return document.getElementById(id);
@@ -73,10 +74,58 @@
         }).catch(function () {});
     }
 
+    function noticeElement() {
+        if (notice) {
+            return notice;
+        }
+
+        notice = document.createElement('div');
+        notice.id = 'great-imports-em-location-readiness';
+        notice.className = 'notice notice-info inline';
+        notice.style.marginTop = '12px';
+
+        var target = document.getElementById('em-location-data') || document.getElementById('location_coordinates');
+        if (target && target.parentNode) {
+            target.parentNode.insertBefore(notice, target.nextSibling);
+        }
+
+        return notice;
+    }
+
+    function updateNotice(snap) {
+        var element = noticeElement();
+        if (!element) {
+            return;
+        }
+
+        if (!snap.latitude_field_present || !snap.longitude_field_present) {
+            element.className = 'notice notice-warning inline';
+            element.innerHTML = '<p><strong>Great Imports map trace:</strong> Events Manager coordinate fields were not found on this edit page.</p>';
+            return;
+        }
+
+        if (snap.complete) {
+            element.className = 'notice notice-success inline';
+            element.innerHTML = '<p><strong>Great Imports map trace:</strong> Events Manager map coordinates are ready. Click Update to persist the EM-produced coordinates.</p>';
+            return;
+        }
+
+        if (snap.address_present) {
+            element.className = 'notice notice-warning inline';
+            element.innerHTML = '<p><strong>Great Imports map trace:</strong> Waiting for Events Manager to populate map coordinates. After clicking OK, wait here until this notice says coordinates are ready, then click Update.</p>';
+            return;
+        }
+
+        element.className = 'notice notice-info inline';
+        element.innerHTML = '<p><strong>Great Imports map trace:</strong> Add a location address so Events Manager can populate map coordinates.</p>';
+    }
+
     function scheduleAfterOkChecks() {
         [250, 1000, 3000, 6000].forEach(function (delay) {
             window.setTimeout(function () {
-                send('after_ok_delay_' + delay + 'ms', snapshot('after_ok_delay_' + delay + 'ms'));
+                var snap = snapshot('after_ok_delay_' + delay + 'ms');
+                updateNotice(snap);
+                send('after_ok_delay_' + delay + 'ms', snap);
             }, delay);
         });
     }
@@ -100,7 +149,9 @@
         var current = stateKey();
         if (current !== lastState) {
             lastState = current;
-            send('coordinate_input_state_changed', snapshot('coordinate_input_state_changed'));
+            var snap = snapshot('coordinate_input_state_changed');
+            updateNotice(snap);
+            send('coordinate_input_state_changed', snap);
         }
     }
 
@@ -119,9 +170,13 @@
                 return originalAlert.apply(window, arguments);
             }
 
-            send('before_ok_alert', snapshot('before_ok_alert'));
+            var before = snapshot('before_ok_alert');
+            updateNotice(before);
+            send('before_ok_alert', before);
             var result = originalAlert.apply(window, arguments);
-            send('after_ok_alert', snapshot('after_ok_alert'));
+            var after = snapshot('after_ok_alert');
+            updateNotice(after);
+            send('after_ok_alert', after);
             scheduleAfterOkChecks();
             return result;
         };
@@ -133,15 +188,26 @@
         if (!form) {
             return;
         }
-        form.addEventListener('submit', function () {
-            send('before_location_form_submit', snapshot('before_location_form_submit'), true);
+        form.addEventListener('submit', function (event) {
+            var snap = snapshot('before_location_form_submit');
+            updateNotice(snap);
+            send('before_location_form_submit', snap, true);
+
+            if (snap.address_present && snap.latitude_field_present && snap.longitude_field_present && !snap.complete) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                send('blocked_location_form_submit_incomplete_coordinates', snap, true);
+                window.alert('Events Manager has not populated complete map coordinates yet. Wait until Great Imports says the map coordinates are ready, then click Update.');
+            }
         }, true);
     }
 
     installAlertTrace();
 
     document.addEventListener('DOMContentLoaded', function () {
-        send('location_edit_page_loaded', snapshot('location_edit_page_loaded'));
+        var loaded = snapshot('location_edit_page_loaded');
+        updateNotice(loaded);
+        send('location_edit_page_loaded', loaded);
         installSubmitTrace();
         maybeTraceStateChange();
 
