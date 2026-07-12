@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.33
+Stable tag: 0.2.34
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.34 =
+* Adds browser-side Events Manager location edit tracing around the map refresh alert/OK flow.
+* Reports coordinate-field presence before OK, immediately after OK, after short delays, on hidden coordinate field changes, and before form submit.
+* Keeps raw coordinate values redacted and does not change Events Manager save, geocoding, map, ticket, publishing, scheduling, or import behavior.
 
 = 0.2.33 =
 * Adds Events Manager location trace reporting with before/during/after import snapshots.

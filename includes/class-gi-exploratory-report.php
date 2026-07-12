@@ -308,12 +308,40 @@ final class GI_Exploratory_Report {
                         'event'        => $em_event_id ? $this->event_snapshot( $em_event_id ) : array(),
                         'location'     => $em_location_id ? $this->location_snapshot( $em_location_id ) : array(),
                     ),
+                    'browser_location_trace' => $this->browser_location_trace( $candidate_id, $em_location_id ),
                     'trace_rule' => 'Before/during/after snapshots trace Events Manager location workflow. Coordinate values are redacted; presence/absence is reported so EM-produced coordinates can be verified without Great Imports owning them.',
                 )
             );
         }
 
         return $traces;
+    }
+
+    private function browser_location_trace( $candidate_id, $location_id ) {
+        $candidate_trace = get_post_meta( absint( $candidate_id ), '_gi_em_browser_location_trace', true );
+        $location_post_id = $this->location_post_id( $location_id );
+        $location_trace = $location_post_id ? get_post_meta( $location_post_id, '_gi_em_browser_location_trace', true ) : array();
+
+        return array(
+            'candidate_trace_available' => is_array( $candidate_trace ) && ! empty( $candidate_trace ),
+            'candidate_records'         => is_array( $candidate_trace ) ? $candidate_trace : array(),
+            'location_post_id'          => $location_post_id,
+            'location_post_trace_available' => is_array( $location_trace ) && ! empty( $location_trace ),
+            'location_post_records'     => is_array( $location_trace ) ? $location_trace : array(),
+            'trace_rule'                => 'Browser records are captured from the Events Manager location edit page around the OK alert and form submit. They report coordinate field presence only, never raw coordinate values.',
+        );
+    }
+
+    private function location_post_id( $location_id ) {
+        global $wpdb;
+
+        $location_id = absint( $location_id );
+        if ( ! $location_id ) {
+            return 0;
+        }
+
+        $table = $wpdb->prefix . 'em_locations';
+        return absint( $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM {$table} WHERE location_id = %d", $location_id ) ) );
     }
 
     private function location_snapshot( $location_id ) {
