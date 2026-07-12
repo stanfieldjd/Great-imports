@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.35
+Stable tag: 0.2.36
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,7 +19,7 @@ The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so
 
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
-Great Imports does not run its own geocoder and does not hand source coordinates to Events Manager. It saves reviewed address fields like a manual location entry so Events Manager owns geocoding and map behavior. A matched Events Manager location can also be selected from the Location area.
+Great Imports prepares reviewed Events Manager event and location fields for storage handoff. A matched Events Manager location can also be selected from the Location area, and existing coordinate data is preserved unless an explicit replacement decision is recorded.
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
@@ -27,10 +27,13 @@ This version does not schedule recurring imports, directly publish Events Manage
 
 == Changelog ==
 
+= 0.2.36 =
+* Removes the Events Manager browser location readiness workflow from Great Imports.
+* Removes the location edit-page submit blocker tied to incomplete hidden coordinate fields.
+* Updates import preview and reports to describe the Events Manager storage handoff instead of the discarded geocoding/browser workflow.
+
 = 0.2.35 =
-* Adds an Events Manager location edit-page readiness notice for the EM-owned map/geocoding workflow.
-* Prevents submitting the location edit form while address fields exist but Events Manager's hidden coordinate fields are still incomplete.
-* Keeps Great Imports out of geocoding and coordinate writes; it only observes EM's coordinate-field readiness and reports the trace.
+* Historical build superseded by 0.2.36 workflow cleanup.
 
 = 0.2.34 =
 * Adds browser-side Events Manager location edit tracing around the map refresh alert/OK flow.
