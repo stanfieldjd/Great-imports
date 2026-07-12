@@ -141,6 +141,8 @@ final class GI_Jsonld_Parser {
         $address  = is_array( $location ) && isset( $location['address'] ) && is_array( $location['address'] ) ? $location['address'] : array();
         $offer    = $this->first_item( isset( $event['offers'] ) ? $event['offers'] : array() );
         $image    = $this->first_item( isset( $event['image'] ) ? $event['image'] : '' );
+        $geo      = is_array( $location ) && isset( $location['geo'] ) && is_array( $location['geo'] ) ? $location['geo'] : array();
+        $coordinates = $this->geo_coordinates( $geo );
 
         return array(
             'source_type'       => 'eventbrite',
@@ -156,6 +158,10 @@ final class GI_Jsonld_Parser {
             'location_state'       => $this->string_value( isset( $address['addressRegion'] ) ? $address['addressRegion'] : '' ),
             'location_postal_code' => $this->string_value( isset( $address['postalCode'] ) ? $address['postalCode'] : '' ),
             'location_country'     => $this->string_value( isset( $address['addressCountry'] ) ? $address['addressCountry'] : '' ),
+            'location_latitude'    => $coordinates['latitude'],
+            'location_longitude'   => $coordinates['longitude'],
+            'location_coordinate_source' => $coordinates['source'],
+            'location_coordinate_evidence_path' => $coordinates['evidence_path'],
             'ticket_url'        => $this->url_value( is_array( $offer ) && isset( $offer['url'] ) ? $offer['url'] : '' ),
             'price'             => $this->offer_price( $offer ),
             'price_currency'    => $this->string_value( is_array( $offer ) && isset( $offer['priceCurrency'] ) ? $offer['priceCurrency'] : '' ),
@@ -165,6 +171,47 @@ final class GI_Jsonld_Parser {
             'candidate_status'  => 'needs_review',
             'collection_method' => 'one_time_eventbrite_url',
         );
+    }
+
+
+    /**
+     * Extract explicit schema.org GeoCoordinates without geocoding.
+     *
+     * @param array<string,mixed> $geo Geo node.
+     * @return array{latitude:string,longitude:string,source:string,evidence_path:string}
+     */
+    private function geo_coordinates( array $geo ) {
+        $latitude  = $this->coordinate_value( isset( $geo['latitude'] ) ? $geo['latitude'] : '' );
+        $longitude = $this->coordinate_value( isset( $geo['longitude'] ) ? $geo['longitude'] : '' );
+
+        if ( '' === $latitude || '' === $longitude ) {
+            return array(
+                'latitude'      => '',
+                'longitude'     => '',
+                'source'        => '',
+                'evidence_path' => '',
+            );
+        }
+
+        return array(
+            'latitude'      => $latitude,
+            'longitude'     => $longitude,
+            'source'        => 'jsonld_location_geo',
+            'evidence_path' => 'location.geo.latitude,location.geo.longitude',
+        );
+    }
+
+    /**
+     * Normalize a coordinate value.
+     *
+     * @param mixed $value Input value.
+     */
+    private function coordinate_value( $value ) {
+        if ( is_array( $value ) || is_object( $value ) || ! is_numeric( $value ) ) {
+            return '';
+        }
+
+        return number_format( round( (float) $value, 6 ), 6, '.', '' );
     }
 
     private function offer_price( $offer ) {
