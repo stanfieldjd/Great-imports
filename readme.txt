@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.32
+Stable tag: 0.2.33
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.33 =
+* Adds Events Manager location trace reporting with before/during/after import snapshots.
+* Reports Events Manager event/location IDs, location post/admin URL, address payload, coordinate presence/absence, and map-refresh-needed state without exporting raw coordinate values.
+* Does not change import behavior, coordinate handoff, ticket handling, publishing, scheduling, images, or geocoding.
 
 = 0.2.32 =
 * Supersedes the 0.2.29-0.2.31 coordinate-transfer behavior.

@@ -62,6 +62,7 @@ final class GI_Exploratory_Report {
         $import_previews      = $this->get_import_previews( $candidate_posts );
         $coverage_audits      = $this->get_coverage_audits( $candidate_posts, $source_page_displays, $import_previews );
         $evidence             = $this->get_evidence_records();
+        $em_location_traces   = $this->get_events_manager_location_traces( $candidate_posts );
 
         return array(
             'report_type'                 => 'great_imports_exploratory_report',
@@ -95,10 +96,11 @@ final class GI_Exploratory_Report {
                 'eventbrite_private_token_configured' => $this->api_client->has_private_token(),
                 'eventbrite_private_token_value'      => $this->api_client->has_private_token() ? '[configured-not-exported]' : '[not-configured]',
             ),
-            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays, $coverage_audits ),
+            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays, $coverage_audits, $em_location_traces ),
             'source_coverage_audits'      => $coverage_audits,
             'source_page_display_reports' => $source_page_displays,
             'import_previews'             => $import_previews,
+            'events_manager_location_traces' => $em_location_traces,
             'evidence_records'            => $evidence,
             'candidates'                  => $candidates,
         );
@@ -278,6 +280,150 @@ final class GI_Exploratory_Report {
     }
 
     /**
+     * Build Events Manager import trace rows with current report-time snapshots.
+     *
+     * @param WP_Post[] $posts Candidate posts.
+     * @return array<int,array<string,mixed>>
+     */
+    private function get_events_manager_location_traces( array $posts ) {
+        $traces = array();
+
+        foreach ( $posts as $post ) {
+            $candidate_id = (int) $post->ID;
+            $stored_trace = get_post_meta( $candidate_id, '_gi_em_import_trace', true );
+            $em_event_id  = absint( get_post_meta( $candidate_id, '_gi_em_event_id', true ) );
+            $em_location_id = absint( get_post_meta( $candidate_id, '_gi_em_location_id', true ) );
+
+            $traces[] = $this->sanitize_report_value(
+                'events_manager_location_trace',
+                array(
+                    'candidate_post_id' => $candidate_id,
+                    'candidate_title'   => sanitize_text_field( get_the_title( $post ) ),
+                    'trace_available'   => is_array( $stored_trace ) && ! empty( $stored_trace ),
+                    'stored_import_trace' => is_array( $stored_trace ) ? $stored_trace : array(),
+                    'current_report_time_snapshot' => array(
+                        'generated_at' => current_time( 'mysql' ),
+                        'em_event_id'  => $em_event_id,
+                        'em_location_id' => $em_location_id,
+                        'event'        => $em_event_id ? $this->event_snapshot( $em_event_id ) : array(),
+                        'location'     => $em_location_id ? $this->location_snapshot( $em_location_id ) : array(),
+                    ),
+                    'trace_rule' => 'Before/during/after snapshots trace Events Manager location workflow. Coordinate values are redacted; presence/absence is reported so EM-produced coordinates can be verified without Great Imports owning them.',
+                )
+            );
+        }
+
+        return $traces;
+    }
+
+    private function location_snapshot( $location_id ) {
+        global $wpdb;
+
+        $location_id = absint( $location_id );
+        if ( ! $location_id ) {
+            return array( 'found' => false, 'location_id' => 0 );
+        }
+
+        $table = $wpdb->prefix . 'em_locations';
+        $row   = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT location_id, post_id, location_name, location_address, location_town, location_state, location_postcode, location_country, location_latitude, location_longitude FROM {$table} WHERE location_id = %d",
+                $location_id
+            ),
+            ARRAY_A
+        );
+
+        if ( ! is_array( $row ) ) {
+            return array( 'found' => false, 'location_id' => $location_id );
+        }
+
+        $post_id = isset( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+        $meta_latitude  = $post_id ? get_post_meta( $post_id, '_location_latitude', true ) : '';
+        $meta_longitude = $post_id ? get_post_meta( $post_id, '_location_longitude', true ) : '';
+        $address        = array(
+            'location_name'     => isset( $row['location_name'] ) ? sanitize_text_field( (string) $row['location_name'] ) : '',
+            'location_address'  => isset( $row['location_address'] ) ? sanitize_text_field( (string) $row['location_address'] ) : '',
+            'location_town'     => isset( $row['location_town'] ) ? sanitize_text_field( (string) $row['location_town'] ) : '',
+            'location_state'    => isset( $row['location_state'] ) ? sanitize_text_field( (string) $row['location_state'] ) : '',
+            'location_postcode' => isset( $row['location_postcode'] ) ? sanitize_text_field( (string) $row['location_postcode'] ) : '',
+            'location_country'  => isset( $row['location_country'] ) ? sanitize_text_field( (string) $row['location_country'] ) : '',
+        );
+        $coordinate_state = array(
+            'values_redacted' => true,
+            'post_meta'       => array(
+                'latitude_present'  => $this->coordinate_present( $meta_latitude ),
+                'longitude_present' => $this->coordinate_present( $meta_longitude ),
+                'complete'          => $this->coordinate_present( $meta_latitude ) && $this->coordinate_present( $meta_longitude ),
+            ),
+            'em_locations_table' => array(
+                'latitude_present'  => $this->coordinate_present( isset( $row['location_latitude'] ) ? $row['location_latitude'] : '' ),
+                'longitude_present' => $this->coordinate_present( isset( $row['location_longitude'] ) ? $row['location_longitude'] : '' ),
+                'complete'          => $this->coordinate_present( isset( $row['location_latitude'] ) ? $row['location_latitude'] : '' ) && $this->coordinate_present( isset( $row['location_longitude'] ) ? $row['location_longitude'] : '' ),
+            ),
+        );
+        $has_complete_coordinates = ! empty( $coordinate_state['post_meta']['complete'] ) || ! empty( $coordinate_state['em_locations_table']['complete'] );
+
+        return array(
+            'found'       => true,
+            'location_id' => $location_id,
+            'post_id'     => $post_id,
+            'post_status' => $post_id ? sanitize_text_field( (string) get_post_status( $post_id ) ) : '',
+            'post_title'  => $post_id ? sanitize_text_field( get_the_title( $post_id ) ) : '',
+            'admin_edit_url' => $post_id ? esc_url_raw( admin_url( 'post.php?post=' . $post_id . '&action=edit' ) ) : '',
+            'address'     => $address,
+            'coordinate_state' => $coordinate_state,
+            'has_complete_coordinates' => $has_complete_coordinates,
+            'map_refresh_required' => $this->address_present( $address ) && ! $has_complete_coordinates,
+            'trace_note'  => 'Coordinate values are intentionally redacted. If Events Manager later produces coordinates, Great Imports should leave them untouched.',
+        );
+    }
+
+    private function event_snapshot( $event_id ) {
+        $event_id = absint( $event_id );
+        if ( ! $event_id || ! class_exists( 'EM_Event' ) ) {
+            return array( 'found' => false, 'event_id' => $event_id );
+        }
+
+        if ( function_exists( 'em_get_event' ) ) {
+            $event = em_get_event( $event_id );
+        } else {
+            $event = new EM_Event( $event_id );
+        }
+
+        if ( ! $event || empty( $event->event_id ) ) {
+            return array( 'found' => false, 'event_id' => $event_id );
+        }
+
+        $post_id = ! empty( $event->post_id ) ? absint( $event->post_id ) : 0;
+        return array(
+            'found'       => true,
+            'event_id'    => absint( $event->event_id ),
+            'post_id'     => $post_id,
+            'post_status' => $post_id ? sanitize_text_field( (string) get_post_status( $post_id ) ) : '',
+            'post_title'  => $post_id ? sanitize_text_field( get_the_title( $post_id ) ) : '',
+            'location_id' => ! empty( $event->location_id ) ? absint( $event->location_id ) : 0,
+            'admin_edit_url' => $post_id ? esc_url_raw( admin_url( 'post.php?post=' . $post_id . '&action=edit' ) ) : '',
+        );
+    }
+
+    private function coordinate_present( $value ) {
+        $value = trim( (string) $value );
+        if ( '' === $value || ! is_numeric( $value ) ) {
+            return false;
+        }
+        return (float) $value !== 0.0;
+    }
+
+    private function address_present( array $address ) {
+        foreach ( array( 'location_address', 'location_town', 'location_state', 'location_postcode', 'location_country' ) as $key ) {
+            if ( ! empty( $address[ $key ] ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Read post metadata that belongs to Great Imports.
      *
      * @param int $post_id Post ID.
@@ -310,15 +456,18 @@ final class GI_Exploratory_Report {
      * @param array<int,array<string,mixed>> $previews Import previews.
      * @param array<int,array<string,mixed>> $display_reports Display reports.
      * @param array<int,array<string,mixed>> $coverage_audits Coverage audits.
+     * @param array<int,array<string,mixed>> $em_location_traces Events Manager traces.
      * @return array<string,mixed>
      */
-    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports, array $coverage_audits ) {
+    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports, array $coverage_audits, array $em_location_traces ) {
         $summary = array(
             'total_candidates'                    => count( $candidates ),
             'total_evidence_records'              => count( $evidence ),
             'total_import_previews'               => count( $previews ),
             'total_source_page_display_reports'   => count( $display_reports ),
             'total_source_coverage_audits'        => count( $coverage_audits ),
+            'total_events_manager_location_traces' => count( $em_location_traces ),
+            'events_manager_location_trace_status' => array(),
             'candidate_by_status'                 => array(),
             'candidate_by_source_type'            => array(),
             'candidate_by_fetch_method'           => array(),
@@ -418,6 +567,12 @@ final class GI_Exploratory_Report {
             }
         }
 
+        foreach ( $em_location_traces as $trace ) {
+            $stored = isset( $trace['stored_import_trace'] ) && is_array( $trace['stored_import_trace'] ) ? $trace['stored_import_trace'] : array();
+            $status = isset( $stored['status'] ) && '' !== $stored['status'] ? (string) $stored['status'] : '[missing]';
+            $summary['events_manager_location_trace_status'][ $status ] = isset( $summary['events_manager_location_trace_status'][ $status ] ) ? $summary['events_manager_location_trace_status'][ $status ] + 1 : 1;
+        }
+
         ksort( $summary['candidate_by_status'] );
         ksort( $summary['candidate_by_source_type'] );
         ksort( $summary['candidate_by_fetch_method'] );
@@ -426,6 +581,7 @@ final class GI_Exploratory_Report {
         ksort( $summary['coverage_import_readiness'] );
         ksort( $summary['coverage_missing_required_sections'] );
         ksort( $summary['coverage_missing_optional_sections'] );
+        ksort( $summary['events_manager_location_trace_status'] );
 
         return $summary;
     }
@@ -443,7 +599,7 @@ final class GI_Exploratory_Report {
         }
 
         if ( $this->is_coordinate_key( $key ) ) {
-            return '[coordinate-used-for-em-location-not-exported]';
+            return '[coordinate-redacted-events-manager-owned]';
         }
 
         if ( is_array( $value ) ) {
@@ -483,13 +639,17 @@ final class GI_Exploratory_Report {
     }
 
     /**
-     * Detect structured coordinate fields. Great Imports can transfer these to Events Manager
-     * locations, but raw values are not exported in review reports.
+     * Detect raw structured coordinate fields. Great Imports does not hand these to Events Manager,
+     * but raw values are still not exported in review reports.
      *
      * @param string $key Field key.
      */
     private function is_coordinate_key( $key ) {
         $key = strtolower( (string) $key );
+
+        if ( preg_match( '/(?:latitude|longitude)_(?:present|complete)$/', $key ) ) {
+            return false;
+        }
 
         if ( in_array( $key, array( 'latitude', 'longitude', 'lat', 'lng', 'lon', 'long' ), true ) ) {
             return true;
