@@ -53,7 +53,7 @@ final class GI_Import_Preview_Builder {
                 'location_postcode' => $location['postcode'],
                 'location_country'  => $location['country'],
                 'stage_room'        => $stage_room,
-                'handoff_note'      => __( 'Great Imports fills reviewed address fields only. Events Manager owns save/update/location ID/geocoding/map behavior when an import step is approved.', 'great-imports' ),
+                'handoff_note'      => __( 'Great Imports prepares reviewed Events Manager location fields for the storage handoff when an import step is approved.', 'great-imports' ),
             ),
             'reviewer_decisions'  => $this->reviewer_decisions( $post_id ),
             'images'              => array(
@@ -96,7 +96,6 @@ final class GI_Import_Preview_Builder {
             ),
             'excluded_public_data' => array(
                 __( 'latitude/longitude', 'great-imports' ),
-                __( 'geocoding', 'great-imports' ),
                 __( 'manual Events Manager location ID assignment unless reviewer selected an existing EM location for later import', 'great-imports' ),
                 __( 'raw scripts', 'great-imports' ),
                 __( 'raw cookies/headers', 'great-imports' ),
@@ -455,7 +454,6 @@ final class GI_Import_Preview_Builder {
                 'location_state'    => $location['state'],
                 'location_postcode' => $location['postcode'],
                 'location_country'  => $location['country'],
-                'geocoding_owner'   => 'events_manager',
             ),
             'ticketing'         => array(
                 'handling'   => 'description_only',
