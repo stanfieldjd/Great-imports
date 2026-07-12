@@ -23,6 +23,8 @@ final class GI_Eventbrite_API_Normalizer {
             $description = $this->nested_string( $event, array( 'description', 'text' ) );
         }
 
+        $coordinates = $this->venue_coordinates( $event );
+
         return array(
             'source_type'           => 'eventbrite',
             'eventbrite_event_id'   => $this->string_value( isset( $event['id'] ) ? $event['id'] : '' ),
@@ -41,6 +43,10 @@ final class GI_Eventbrite_API_Normalizer {
             'location_state'        => $this->nested_string( $event, array( 'venue', 'address', 'region' ) ),
             'location_postal_code'  => $this->nested_string( $event, array( 'venue', 'address', 'postal_code' ) ),
             'location_country'      => $this->nested_string( $event, array( 'venue', 'address', 'country' ) ),
+            'location_latitude'     => $coordinates['latitude'],
+            'location_longitude'    => $coordinates['longitude'],
+            'location_coordinate_source' => $coordinates['source'],
+            'location_coordinate_evidence_path' => $coordinates['evidence_path'],
             'ticket_url'            => esc_url_raw( $this->string_value( isset( $event['url'] ) ? $event['url'] : '' ) ),
             'price'                 => $this->nested_string( $event, array( 'ticket_availability', 'minimum_ticket_price', 'major_value' ) ),
             'price_currency'        => $this->nested_string( $event, array( 'ticket_availability', 'minimum_ticket_price', 'currency' ) ),
@@ -85,6 +91,86 @@ final class GI_Eventbrite_API_Normalizer {
         }
 
         return sanitize_text_field( (string) $value );
+    }
+
+
+    /**
+     * Extract explicit Eventbrite venue coordinates without geocoding.
+     *
+     * @param array<string,mixed> $event API event payload.
+     * @return array{latitude:string,longitude:string,source:string,evidence_path:string}
+     */
+    private function venue_coordinates( array $event ) {
+        $paths = array(
+            array( 'venue', 'latitude' ),
+            array( 'venue', 'lat' ),
+        );
+        $longitude_paths = array(
+            array( 'venue', 'longitude' ),
+            array( 'venue', 'long' ),
+            array( 'venue', 'lng' ),
+        );
+
+        $latitude = '';
+        $latitude_path = '';
+        foreach ( $paths as $path ) {
+            $value = $this->nested_coordinate( $event, $path );
+            if ( '' !== $value ) {
+                $latitude = $value;
+                $latitude_path = implode( '.', $path );
+                break;
+            }
+        }
+
+        $longitude = '';
+        $longitude_path = '';
+        foreach ( $longitude_paths as $path ) {
+            $value = $this->nested_coordinate( $event, $path );
+            if ( '' !== $value ) {
+                $longitude = $value;
+                $longitude_path = implode( '.', $path );
+                break;
+            }
+        }
+
+        if ( '' === $latitude || '' === $longitude ) {
+            return array(
+                'latitude'      => '',
+                'longitude'     => '',
+                'source'        => '',
+                'evidence_path' => '',
+            );
+        }
+
+        return array(
+            'latitude'      => $latitude,
+            'longitude'     => $longitude,
+            'source'        => 'eventbrite_api_venue',
+            'evidence_path' => $latitude_path . ',' . $longitude_path,
+        );
+    }
+
+    /**
+     * Safely read and normalize a nested coordinate value.
+     *
+     * @param array<string,mixed> $data Source data.
+     * @param string[]            $path Path keys.
+     */
+    private function nested_coordinate( array $data, array $path ) {
+        $value = $data;
+
+        foreach ( $path as $key ) {
+            if ( ! is_array( $value ) || ! array_key_exists( $key, $value ) ) {
+                return '';
+            }
+            $value = $value[ $key ];
+        }
+
+        if ( is_array( $value ) || is_object( $value ) || ! is_numeric( $value ) ) {
+            return '';
+        }
+
+        return number_format( round( (float) $value, 6 ), 6, '.', '' );
     }
 
     /**
