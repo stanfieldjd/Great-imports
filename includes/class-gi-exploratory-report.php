@@ -610,7 +610,7 @@ final class GI_Exploratory_Report {
         }
 
         if ( $this->is_coordinate_key( $key ) ) {
-            return '[coordinate-redacted-events-manager-owned]';
+            return '[coordinate-redacted-storage-handoff]';
         }
 
         if ( is_array( $value ) ) {
@@ -650,8 +650,8 @@ final class GI_Exploratory_Report {
     }
 
     /**
-     * Detect raw structured coordinate fields. Great Imports does not hand these to Events Manager,
-     * but raw values are still not exported in review reports.
+     * Detect raw structured coordinate fields. Raw coordinate values are never exported in review reports,
+     * even when coordinate presence and storage-handoff decisions are reported.
      *
      * @param string $key Field key.
      */
