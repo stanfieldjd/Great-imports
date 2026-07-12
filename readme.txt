@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.37
+Stable tag: 0.2.38
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,13 +19,19 @@ The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so
 
 Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
 
-Great Imports prepares reviewed Events Manager event and location fields for storage handoff. A matched Events Manager location can also be selected from the Location area, and existing coordinate data is preserved unless an explicit replacement decision is recorded.
+Great Imports prepares reviewed Events Manager event and location fields for storage handoff. A matched Events Manager location can also be selected from the Location area. Explicit source coordinates are carried into the private Events Manager storage handoff when present, and existing coordinate data is preserved unless an explicit replacement decision is recorded.
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.38 =
+* Captures explicit Eventbrite venue and schema.org GeoCoordinates values as private source evidence.
+* Threads complete source coordinate pairs into the Events Manager payload with provenance while keeping raw values redacted from reports.
+* Synchronizes Events Manager location post meta and the EM locations table during import, preserving complete existing coordinates and filling missing coordinate surfaces only from explicit source evidence.
+* Keeps reviewer-selected existing locations from having their address fields rewritten.
 
 = 0.2.37 =
 * Removes the stale map-refresh-required field from Events Manager import traces and exploratory reports.
