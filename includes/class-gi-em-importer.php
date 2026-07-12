@@ -194,7 +194,7 @@ final class GI_EM_Importer {
 
         return array(
             'schema_version' => 1,
-            'rule'           => 'Great Imports records the Events Manager location storage handoff and preserves existing coordinate data.'
+            'rule'           => 'Great Imports records the Events Manager location storage handoff and preserves existing coordinate data.',
             'started_at'     => current_time( 'mysql' ),
             'candidate_post_id' => absint( $candidate_id ),
             'before'         => array(
