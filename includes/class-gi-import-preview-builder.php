@@ -95,7 +95,7 @@ final class GI_Import_Preview_Builder {
                 'reviewed_by_user_id'     => $this->review_meta( $post_id, 'reviewed_by' ),
             ),
             'excluded_public_data' => array(
-                __( 'latitude/longitude', 'great-imports' ),
+                __( 'raw latitude/longitude values', 'great-imports' ),
                 __( 'manual Events Manager location ID assignment unless reviewer selected an existing EM location for later import', 'great-imports' ),
                 __( 'raw scripts', 'great-imports' ),
                 __( 'raw cookies/headers', 'great-imports' ),
@@ -401,6 +401,40 @@ final class GI_Import_Preview_Builder {
         return sanitize_text_field( (string) $value );
     }
 
+
+    /**
+     * Return complete source-backed location coordinates for private EM handoff.
+     *
+     * @param int $post_id Candidate post ID.
+     * @return array<string,mixed>
+     */
+    private function location_coordinates( $post_id ) {
+        $latitude  = $this->coordinate_value( $this->meta( $post_id, 'location_latitude' ) );
+        $longitude = $this->coordinate_value( $this->meta( $post_id, 'location_longitude' ) );
+
+        return array(
+            'complete'      => '' !== $latitude && '' !== $longitude,
+            'latitude'      => $latitude,
+            'longitude'     => $longitude,
+            'source'        => $this->meta( $post_id, 'location_coordinate_source' ),
+            'evidence_path' => $this->meta( $post_id, 'location_coordinate_evidence_path' ),
+        );
+    }
+
+    /**
+     * Normalize a coordinate value for private handoff.
+     *
+     * @param string $value Candidate value.
+     */
+    private function coordinate_value( $value ) {
+        $value = trim( (string) $value );
+        if ( '' === $value || ! is_numeric( $value ) ) {
+            return '';
+        }
+
+        return number_format( round( (float) $value, 6 ), 6, '.', '' );
+    }
+
     private function events_manager_payload( $post_id, $title, array $start, array $end, array $location, $description ) {
         $selected_location_id = absint( $this->review_meta( $post_id, 'em_location_id' ) );
         $source_timezone      = $this->candidate_value( $post_id, 'timezone' );
@@ -426,6 +460,27 @@ final class GI_Import_Preview_Builder {
         if ( ! $selected_location_id && '' === $location['name'] && '' === $location['address_1'] ) {
             $errors[] = __( 'A selected Events Manager location or source-backed location is required.', 'great-imports' );
         }
+
+        $coordinates = $this->location_coordinates( $post_id );
+        $location_payload = array(
+            'strategy'          => $selected_location_id ? 'existing' : 'create',
+            'em_location_id'    => $selected_location_id,
+            'location_name'     => $location['name'],
+            'location_address'  => $location['address_1'],
+            'location_address2' => $location['address_2'],
+            'location_town'     => $location['city'],
+            'location_state'    => $location['state'],
+            'location_postcode' => $location['postcode'],
+            'location_country'  => $location['country'],
+        );
+
+        if ( ! empty( $coordinates['complete'] ) ) {
+            $location_payload['location_latitude'] = $coordinates['latitude'];
+            $location_payload['location_longitude'] = $coordinates['longitude'];
+            $location_payload['coordinate_source'] = $coordinates['source'];
+            $location_payload['coordinate_evidence_path'] = $coordinates['evidence_path'];
+        }
+
         return array(
             'candidate_post_id' => absint( $post_id ),
             'ready_for_save'    => empty( $errors ),
@@ -444,17 +499,7 @@ final class GI_Import_Preview_Builder {
                 'post_content'     => wp_kses_post( $description ),
                 'event_status'     => 'draft_review',
             ),
-            'location'          => array(
-                'strategy'          => $selected_location_id ? 'existing' : 'create',
-                'em_location_id'    => $selected_location_id,
-                'location_name'     => $location['name'],
-                'location_address'  => $location['address_1'],
-                'location_address2' => $location['address_2'],
-                'location_town'     => $location['city'],
-                'location_state'    => $location['state'],
-                'location_postcode' => $location['postcode'],
-                'location_country'  => $location['country'],
-            ),
+            'location'          => $location_payload,
             'ticketing'         => array(
                 'handling'   => 'description_only',
                 'ticket_url' => $this->candidate_value( $post_id, 'ticket_url' ),
