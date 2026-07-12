@@ -132,6 +132,7 @@ final class GI_Candidate_Review {
             'needs_review'       => __( 'Needs review', 'great-imports' ),
             'reviewed'           => __( 'Reviewed', 'great-imports' ),
             'ready_for_import'   => __( 'Ready for import later', 'great-imports' ),
+            'imported'           => __( 'Imported to Events Manager', 'great-imports' ),
             'needs_correction'   => __( 'Needs correction', 'great-imports' ),
             'blocked_or_partial' => __( 'Blocked / partial', 'great-imports' ),
         );
