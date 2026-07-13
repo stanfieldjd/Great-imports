@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.55
+Stable tag: 0.2.56
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.56 =
+* Prevents repeat imports from creating duplicate Events Manager events when the candidate link is missing.
+* Reuses existing Events Manager events by Great Imports source identity first, then by exact title/date/time/location match.
+* Adds the event reuse source to the import trace.
 
 = 0.2.55 =
 * Restores primary source images to imported Events Manager descriptions when a source image URL exists and the description does not already contain it.
