@@ -399,7 +399,7 @@ final class GI_Exploratory_Report {
             $group['hidden_field_differences'] = $this->location_hidden_field_differences( $group['locations'] );
             $group['trace_note'] = $include_postcode
                 ? 'Exact active Events Manager location duplicate. Report only; no automatic merge or deletion.'
-                : 'Potential duplicate based on visible address fields. Check hidden_field_differences before any manual cleanup.';
+                : 'Potential duplicate based on visible address fields. Check hidden_field_differences before any manual action.';
             $duplicates[] = $group;
         }
 
