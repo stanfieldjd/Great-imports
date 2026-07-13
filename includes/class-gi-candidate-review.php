@@ -171,6 +171,9 @@ final class GI_Candidate_Review {
 
         $suggestions  = self::suggestions_from_em_table( $candidate, $limit );
         if ( empty( $suggestions ) ) {
+            $suggestions = self::ranked_suggestions_from_em_table( $candidate, $limit );
+        }
+        if ( empty( $suggestions ) ) {
             $suggestions = self::suggestions_from_location_posts( $candidate, $limit );
         }
         return array_slice( $suggestions, 0, $limit );
@@ -397,12 +400,73 @@ final class GI_Candidate_Review {
         return $suggestions;
     }
 
+    private static function ranked_suggestions_from_em_table( array $candidate, $limit ) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'em_locations';
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        if ( $found !== $table ) {
+            return array();
+        }
+
+        $rows = $wpdb->get_results(
+            "SELECT location_id, location_name, location_address, location_town, location_state, location_postcode, location_country FROM {$table} ORDER BY location_name ASC LIMIT 250",
+            ARRAY_A
+        );
+        if ( empty( $rows ) ) {
+            return array();
+        }
+
+        $ranked = array();
+        foreach ( $rows as $row ) {
+            $match = array(
+                'name'     => isset( $row['location_name'] ) ? (string) $row['location_name'] : '',
+                'address'  => isset( $row['location_address'] ) ? (string) $row['location_address'] : '',
+                'city'     => isset( $row['location_town'] ) ? (string) $row['location_town'] : '',
+                'state'    => isset( $row['location_state'] ) ? (string) $row['location_state'] : '',
+                'postcode' => isset( $row['location_postcode'] ) ? (string) $row['location_postcode'] : '',
+                'country'  => isset( $row['location_country'] ) ? (string) $row['location_country'] : '',
+            );
+            $score = self::location_match_score( $candidate, $match );
+            if ( $score < 40 ) {
+                continue;
+            }
+
+            $ranked[] = array(
+                'id'       => isset( $row['location_id'] ) ? (string) absint( $row['location_id'] ) : '',
+                'name'     => sanitize_text_field( $match['name'] ),
+                'address'  => sanitize_text_field( $match['address'] ),
+                'city'     => sanitize_text_field( $match['city'] ),
+                'state'    => sanitize_text_field( $match['state'] ),
+                'postcode' => sanitize_text_field( $match['postcode'] ),
+                'country'  => sanitize_text_field( $match['country'] ),
+                'reason'   => self::match_reason( $candidate, $match ),
+                'source'   => 'em_locations_table_ranked',
+                'score'    => $score,
+            );
+        }
+
+        usort(
+            $ranked,
+            static function ( $a, $b ) {
+                $score = (int) $b['score'] <=> (int) $a['score'];
+                if ( 0 !== $score ) {
+                    return $score;
+                }
+
+                return strcasecmp( (string) $a['name'], (string) $b['name'] );
+            }
+        );
+
+        return array_slice( $ranked, 0, absint( $limit ) );
+    }
+
     private static function match_reason( array $candidate, array $match ) {
         $reasons = array();
         if ( self::same_text( $candidate['name'], $match['name'] ) ) {
             $reasons[] = __( 'same name', 'great-imports' );
         }
-        if ( self::same_text( $candidate['address'], $match['address'] ) ) {
+        if ( self::same_or_contained_text( $candidate['address'], $match['address'] ) ) {
             $reasons[] = __( 'same address', 'great-imports' );
         }
         if ( self::same_text( $candidate['postcode'], $match['postcode'] ) ) {
@@ -414,9 +478,57 @@ final class GI_Candidate_Review {
         return empty( $reasons ) ? __( 'possible partial match', 'great-imports' ) : implode( ', ', $reasons );
     }
 
+    private static function location_match_score( array $candidate, array $match ) {
+        $score = 0;
+        if ( self::same_text( $candidate['name'], $match['name'] ) ) {
+            $score += 50;
+        } elseif ( self::same_or_contained_text( $candidate['name'], $match['name'] ) ) {
+            $score += 30;
+        }
+        if ( self::same_or_contained_text( $candidate['address'], $match['address'] ) ) {
+            $score += 45;
+        }
+        if ( self::same_text( $candidate['postcode'], $match['postcode'] ) ) {
+            $score += 20;
+        } elseif ( self::text_contains_token( $candidate['address'], $match['postcode'] ) ) {
+            $score += 15;
+        }
+        if ( self::same_text( $candidate['city'], $match['city'] ) ) {
+            $score += 15;
+        } elseif ( self::text_contains_token( $candidate['address'], $match['city'] ) ) {
+            $score += 10;
+        }
+        if ( self::same_text( $candidate['state'], $match['state'] ) || self::text_contains_token( $candidate['address'], $match['state'] ) ) {
+            $score += 5;
+        }
+
+        return $score;
+    }
+
     private static function same_text( $a, $b ) {
         $a = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $a ) ) );
         $b = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $b ) ) );
         return '' !== $a && '' !== $b && $a === $b;
+    }
+
+    private static function same_or_contained_text( $a, $b ) {
+        $a = self::normalized_match_text( $a );
+        $b = self::normalized_match_text( $b );
+
+        return '' !== $a && '' !== $b && ( $a === $b || false !== strpos( $a, $b ) || false !== strpos( $b, $a ) );
+    }
+
+    private static function text_contains_token( $haystack, $needle ) {
+        $haystack = self::normalized_match_text( $haystack );
+        $needle   = self::normalized_match_text( $needle );
+
+        return '' !== $haystack && '' !== $needle && false !== strpos( $haystack, $needle );
+    }
+
+    private static function normalized_match_text( $value ) {
+        $value = strtolower( wp_strip_all_tags( (string) $value ) );
+        $value = preg_replace( '/[^a-z0-9]+/', ' ', $value );
+
+        return trim( preg_replace( '/\s+/', ' ', $value ) );
     }
 }
