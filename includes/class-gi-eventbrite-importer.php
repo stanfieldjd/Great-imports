@@ -139,6 +139,7 @@ final class GI_Eventbrite_Importer {
                 $evidence_result = $this->evidence_store->save_bundle( $bundle );
                 $description     = $description_result['success'] ? $description_result['description'] : '';
                 $candidate       = $this->api_normalizer->normalize_event( $api_result['event'], $description );
+                $candidate       = $this->complete_location_coordinates_from_public_meta( $candidate, $bundle );
 
                 $candidate['submitted_url']                    = esc_url_raw( $submitted_url );
                 $candidate['source_url']                       = $validated['url'];
@@ -210,6 +211,7 @@ final class GI_Eventbrite_Importer {
 
         $evidence_result                                = $this->evidence_store->save_bundle( $bundle );
         $candidate                                      = $parsed['event'];
+        $candidate                                      = $this->complete_location_coordinates_from_public_meta( $candidate, $bundle );
         $candidate['submitted_url']                     = esc_url_raw( $submitted_url );
         $candidate['source_url']                        = $validated['url'];
         $candidate['eventbrite_event_id']               = $validated['event_id'];
@@ -222,6 +224,97 @@ final class GI_Eventbrite_Importer {
         $candidate['exploratory_report_data_coverage']  = 'full_evidence_bundle_first,public_page_http,html_extraction,html_schema_event_jsonld,normalized_candidate_fields';
 
         return $this->store_candidate_result( $candidate, $evidence_result );
+    }
+
+    /**
+     * Complete candidate coordinates from explicit Eventbrite page meta evidence.
+     *
+     * @param array<string,mixed> $candidate Candidate data.
+     * @param array<string,mixed> $bundle Evidence bundle.
+     * @return array<string,mixed>
+     */
+    private function complete_location_coordinates_from_public_meta( array $candidate, array $bundle ) {
+        if ( $this->candidate_has_complete_coordinates( $candidate ) ) {
+            return $candidate;
+        }
+
+        $coordinates = $this->eventbrite_meta_coordinates( $bundle );
+        if ( empty( $coordinates['complete'] ) ) {
+            return $candidate;
+        }
+
+        $candidate['location_latitude']                 = $coordinates['latitude'];
+        $candidate['location_longitude']                = $coordinates['longitude'];
+        $candidate['location_coordinate_source']        = 'eventbrite_public_meta';
+        $candidate['location_coordinate_evidence_path'] = 'public_event_page_html_extracted_evidence.meta_tags[property=event:location:latitude],public_event_page_html_extracted_evidence.meta_tags[property=event:location:longitude]';
+
+        return $candidate;
+    }
+
+    /**
+     * Check whether the candidate already has a complete source coordinate pair.
+     *
+     * @param array<string,mixed> $candidate Candidate data.
+     */
+    private function candidate_has_complete_coordinates( array $candidate ) {
+        $latitude  = isset( $candidate['location_latitude'] ) ? $this->coordinate_value( $candidate['location_latitude'] ) : '';
+        $longitude = isset( $candidate['location_longitude'] ) ? $this->coordinate_value( $candidate['location_longitude'] ) : '';
+
+        return '' !== $latitude && '' !== $longitude;
+    }
+
+    /**
+     * Extract explicit Eventbrite Open Graph location coordinates from captured meta tags.
+     *
+     * @param array<string,mixed> $bundle Evidence bundle.
+     * @return array{complete:bool,latitude:string,longitude:string}
+     */
+    private function eventbrite_meta_coordinates( array $bundle ) {
+        $items    = isset( $bundle['items'] ) && is_array( $bundle['items'] ) ? $bundle['items'] : array();
+        $evidence = isset( $items['public_event_page_html_extracted_evidence'] ) && is_array( $items['public_event_page_html_extracted_evidence'] ) ? $items['public_event_page_html_extracted_evidence'] : array();
+        $meta     = isset( $evidence['meta_tags'] ) && is_array( $evidence['meta_tags'] ) ? $evidence['meta_tags'] : array();
+        $latitude = '';
+        $longitude = '';
+
+        foreach ( $meta as $tag ) {
+            if ( ! is_array( $tag ) ) {
+                continue;
+            }
+
+            $property = isset( $tag['property'] ) ? strtolower( trim( (string) $tag['property'] ) ) : '';
+            $content  = isset( $tag['content'] ) ? $this->coordinate_value( $tag['content'] ) : '';
+
+            if ( 'event:location:latitude' === $property ) {
+                $latitude = $content;
+            } elseif ( 'event:location:longitude' === $property ) {
+                $longitude = $content;
+            }
+        }
+
+        return array(
+            'complete'  => '' !== $latitude && '' !== $longitude,
+            'latitude'  => $latitude,
+            'longitude' => $longitude,
+        );
+    }
+
+    /**
+     * Normalize a coordinate value for private Events Manager handoff.
+     *
+     * @param mixed $value Candidate value.
+     */
+    private function coordinate_value( $value ) {
+        $value = trim( (string) $value );
+        if ( '' === $value || ! is_numeric( $value ) ) {
+            return '';
+        }
+
+        $number = round( (float) $value, 6 );
+        if ( 0.0 === $number ) {
+            return '';
+        }
+
+        return number_format( $number, 6, '.', '' );
     }
 
     /**

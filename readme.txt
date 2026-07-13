@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.43
+Stable tag: 0.2.44
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.44 =
+* Completes Eventbrite public-page coordinate handoff from explicit `event:location:latitude` and `event:location:longitude` meta evidence when JSON-LD omits `location.geo`.
+* Stores the coordinate pair privately on the candidate with provenance so the existing Events Manager storage handoff can save it server-side.
+* Keeps browser autosave, edit-screen OK alerts, geocoding calls, and matching behavior out of this repair.
 
 = 0.2.43 =
 * Publishes the matching-location reuse repair as one complete source state.
