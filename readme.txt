@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.56
+Stable tag: 0.2.57
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.57 =
+* Allows automatic Events Manager location matches to appear as selected Matching Location dropdown values.
+* Uses the imported Events Manager location ID as a valid automatic dropdown selection when no reviewer override exists.
+* Labels automatic dropdown selections as auto matches while still allowing reviewers to save or replace them.
 
 = 0.2.56 =
 * Prevents repeat imports from creating duplicate Events Manager events when the candidate link is missing.
