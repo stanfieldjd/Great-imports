@@ -420,7 +420,68 @@ final class GI_Exploratory_Report {
             'event_timezone' => isset( $event->event_timezone ) ? sanitize_text_field( (string) $event->event_timezone ) : '',
             'location_id' => ! empty( $event->location_id ) ? absint( $event->location_id ) : 0,
             'admin_edit_url' => $post_id ? esc_url_raw( admin_url( 'post.php?post=' . $post_id . '&action=edit' ) ) : '',
+            'content_trace' => $this->event_content_trace( $event, $post_id ),
         );
+    }
+
+    private function event_content_trace( $event, $post_id ) {
+        $post_content = $post_id ? (string) get_post_field( 'post_content', $post_id, 'raw' ) : '';
+        $format       = $this->single_event_format_for_trace( $event );
+        $rendered     = '';
+
+        if ( is_object( $event ) && method_exists( $event, 'output_single' ) ) {
+            $rendered = (string) $event->output_single();
+        }
+
+        return array(
+            'post_content_sha256' => '' !== $post_content ? hash( 'sha256', $post_content ) : '',
+            'post_content_contains_openstreetmap' => $this->contains_openstreetmap_placeholder( $post_content ),
+            'post_content_placeholders' => $this->placeholder_markers( $post_content ),
+            'single_event_format_contains_openstreetmap' => $this->contains_openstreetmap_placeholder( $format ),
+            'single_event_format_contains_location_map' => $this->contains_location_map_placeholder( $format ),
+            'single_event_format_placeholders' => $this->placeholder_markers( $format ),
+            'rendered_single_contains_openstreetmap' => $this->contains_openstreetmap_placeholder( $rendered ),
+            'rendered_single_openstreetmap_context' => $this->placeholder_context( $rendered, '#_OPENSTREETMAP' ),
+            'trace_note' => 'Trace-only field for unsupported map placeholders. It compares saved event content, the active Events Manager single-event format, and rendered single-event output.',
+        );
+    }
+
+    private function single_event_format_for_trace( $event ) {
+        if ( is_object( $event ) && method_exists( $event, 'get_option' ) ) {
+            return (string) $event->get_option( 'dbem_single_event_format' );
+        }
+        if ( function_exists( 'em_get_option' ) ) {
+            return (string) em_get_option( 'dbem_single_event_format' );
+        }
+        return '';
+    }
+
+    private function contains_openstreetmap_placeholder( $value ) {
+        return 1 === preg_match( '/#_OPENSTREETMAP\b/i', (string) $value );
+    }
+
+    private function contains_location_map_placeholder( $value ) {
+        return 1 === preg_match( '/#_(?:LOCATION)?MAP(?:\{[^}]*\})?(?![A-Z0-9_])/i', (string) $value );
+    }
+
+    private function placeholder_markers( $value ) {
+        preg_match_all( '/#_[A-Z0-9_]+(?:\{[^}]*\})?/i', (string) $value, $matches );
+        if ( empty( $matches[0] ) ) {
+            return array();
+        }
+
+        return array_values( array_unique( array_map( 'sanitize_text_field', $matches[0] ) ) );
+    }
+
+    private function placeholder_context( $value, $needle ) {
+        $value = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $value ) ) );
+        $pos   = stripos( $value, $needle );
+        if ( false === $pos ) {
+            return '';
+        }
+
+        $start = max( 0, $pos - 120 );
+        return sanitize_text_field( substr( $value, $start, 240 ) );
     }
 
     private function coordinate_present( $value ) {

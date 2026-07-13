@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.44
+Stable tag: 0.2.45
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.45 =
+* Adds trace-only reporting for unsupported `#_OPENSTREETMAP` placeholders by comparing saved event content, the active Events Manager single-event format, and rendered single-event output.
+* Makes the next report able to identify whether the visible placeholder came from stored event content, Events Manager formatting, or render-time filters.
+* Does not change import behavior, matching, location storage, or Events Manager save workflow.
 
 = 0.2.44 =
 * Completes Eventbrite public-page coordinate handoff from explicit `event:location:latitude` and `event:location:longitude` meta evidence when JSON-LD omits `location.geo`.
