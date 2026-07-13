@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Great Imports
- * Description: Full evidence-first Eventbrite importer with candidate review editing, manual cleanup, source-page display reports, coverage audits, import previews, and review reports.
- * Version: 0.2.53
+ * Description: Full evidence-first Eventbrite importer with candidate review editing, manual data removal, source-page display reports, coverage audits, import previews, and review reports.
+ * Version: 0.2.54
  * Author: Great Imports
  * Text Domain: great-imports
  */
@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'GREAT_IMPORTS_VERSION', '0.2.53' );
+define( 'GREAT_IMPORTS_VERSION', '0.2.54' );
 define( 'GREAT_IMPORTS_FILE', __FILE__ );
 define( 'GREAT_IMPORTS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GREAT_IMPORTS_URL', plugin_dir_url( __FILE__ ) );
