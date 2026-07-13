@@ -422,7 +422,7 @@ final class GI_EM_Importer {
         $event->event_end_date   = isset( $data['event_end_date'] ) ? $data['event_end_date'] : '';
         $event->event_end_time   = isset( $data['event_end_time'] ) ? $data['event_end_time'] : '';
         $event->event_timezone   = isset( $data['event_timezone'] ) ? $data['event_timezone'] : '';
-        $event->event_status     = 0;
+        $event->event_status     = 1;
         $event->event_owner      = get_current_user_id();
         $event->location_id      = absint( $location_id );
         $event->post_content     = isset( $data['post_content'] ) ? $data['post_content'] : '';
