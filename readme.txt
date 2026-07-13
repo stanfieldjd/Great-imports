@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.45
+Stable tag: 0.2.46
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.46 =
+* Stops adding a duplicate venue/address Location section to the Events Manager event description.
+* Keeps the canonical address in the Events Manager location payload so the site location display and map continue to be owned by Events Manager.
+* Does not change location storage, coordinate handoff, matching, tickets, organizer details, FAQs, or the save workflow.
 
 = 0.2.45 =
 * Adds trace-only reporting for unsupported `#_OPENSTREETMAP` placeholders by comparing saved event content, the active Events Manager single-event format, and rendered single-event output.

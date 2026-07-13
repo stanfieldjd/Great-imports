@@ -97,6 +97,7 @@ final class GI_Import_Preview_Builder {
             'excluded_public_data' => array(
                 __( 'raw latitude/longitude values', 'great-imports' ),
                 __( 'manual Events Manager location ID assignment unless reviewer selected an existing EM location for later import', 'great-imports' ),
+                __( 'duplicated venue/address blocks in the event description; Events Manager renders the canonical location separately', 'great-imports' ),
                 __( 'raw scripts', 'great-imports' ),
                 __( 'raw cookies/headers', 'great-imports' ),
                 __( 'Eventbrite source attribution except ticket purchase URL', 'great-imports' ),
@@ -134,7 +135,6 @@ final class GI_Import_Preview_Builder {
 
         $html .= $this->ticket_section_html( $post_id, $ticket_classes );
         $html .= $this->organizer_section_html( $post_id );
-        $html .= $this->venue_section_html( $post_id );
         $html .= $this->faq_section_html( $faqs );
 
         return $html;
@@ -178,40 +178,6 @@ final class GI_Import_Preview_Builder {
         }
 
         return '<h2>' . esc_html__( 'Organizer', 'great-imports' ) . '</h2><p>' . esc_html( $organizer ) . '</p>';
-    }
-
-    private function venue_section_html( $post_id ) {
-        $location = GI_Candidate_Review::normalized_location_fields( $post_id );
-        $name     = $location['name'];
-        $address  = array_filter(
-            array(
-                $location['address_1'],
-                $location['address_2'],
-                trim( $location['city'] . ', ' . $location['state'] . ' ' . $location['postcode'] ),
-                $location['country'],
-            )
-        );
-        $stage   = $this->candidate_value( $post_id, 'stage_room' );
-
-        if ( '' === $name && empty( $address ) && '' === $stage ) {
-            return '';
-        }
-
-        $html = '<h2>' . esc_html__( 'Location', 'great-imports' ) . '</h2>';
-
-        if ( '' !== $name ) {
-            $html .= '<p><strong>' . esc_html( $name ) . '</strong></p>';
-        }
-
-        if ( '' !== $stage ) {
-            $html .= '<p>' . esc_html__( 'Stage / Room:', 'great-imports' ) . ' ' . esc_html( $stage ) . '</p>';
-        }
-
-        if ( ! empty( $address ) ) {
-            $html .= '<p>' . implode( '<br>', array_map( 'esc_html', $address ) ) . '</p>';
-        }
-
-        return $html;
     }
 
     private function faq_section_html( array $faqs ) {
