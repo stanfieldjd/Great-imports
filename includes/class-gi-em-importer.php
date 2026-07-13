@@ -51,6 +51,7 @@ final class GI_EM_Importer {
         $event_result = $this->save_event( $candidate_id, $payload, $location_result['location_id'] );
         $trace['during']['event_save'] = array(
             'existing_em_event_id' => isset( $event_result['existing_event_id'] ) ? absint( $event_result['existing_event_id'] ) : 0,
+            'existing_match_source' => isset( $event_result['existing_match_source'] ) ? sanitize_key( (string) $event_result['existing_match_source'] ) : '',
             'saved_em_event_id'    => isset( $event_result['event_id'] ) ? absint( $event_result['event_id'] ) : 0,
             'success'              => ! empty( $event_result['success'] ),
         );
@@ -468,7 +469,10 @@ final class GI_EM_Importer {
     }
 
     private function save_event( $candidate_id, array $payload, $location_id ) {
-        $existing_id = absint( get_post_meta( $candidate_id, '_gi_em_event_id', true ) );
+        $existing_resolution = $this->existing_event_for_payload( $candidate_id, $payload, $location_id );
+        $existing_id         = isset( $existing_resolution['event_id'] ) ? absint( $existing_resolution['event_id'] ) : 0;
+        $existing_source     = isset( $existing_resolution['source'] ) ? sanitize_key( (string) $existing_resolution['source'] ) : '';
+
         if ( $existing_id ) {
             if ( function_exists( 'em_get_event' ) ) {
                 $event = em_get_event( $existing_id );
@@ -507,7 +511,109 @@ final class GI_EM_Importer {
             update_post_meta( $post_id, '_gi_fingerprint', isset( $payload['source_identity']['fingerprint'] ) ? $payload['source_identity']['fingerprint'] : '' );
         }
 
-        return array( 'success' => true, 'event_id' => absint( $event->event_id ), 'existing_event_id' => $existing_id );
+        return array( 'success' => true, 'event_id' => absint( $event->event_id ), 'existing_event_id' => $existing_id, 'existing_match_source' => $existing_source );
+    }
+
+    private function existing_event_for_payload( $candidate_id, array $payload, $location_id ) {
+        $candidate_event_id = absint( get_post_meta( $candidate_id, '_gi_em_event_id', true ) );
+        if ( $candidate_event_id ) {
+            return array( 'event_id' => $candidate_event_id, 'source' => 'candidate_em_event_id' );
+        }
+
+        $identity = isset( $payload['source_identity'] ) && is_array( $payload['source_identity'] ) ? $payload['source_identity'] : array();
+        foreach ( array( 'eventbrite_event_id', 'fingerprint', 'source_url' ) as $key ) {
+            $value = isset( $identity[ $key ] ) ? trim( (string) $identity[ $key ] ) : '';
+            if ( '' === $value ) {
+                continue;
+            }
+
+            $event_id = $this->existing_event_id_by_post_meta( '_gi_' . $key, $value );
+            if ( $event_id ) {
+                return array( 'event_id' => $event_id, 'source' => $key );
+            }
+        }
+
+        $event_id = $this->existing_event_id_by_exact_payload( $payload, $location_id );
+        if ( $event_id ) {
+            return array( 'event_id' => $event_id, 'source' => 'exact_event_fields' );
+        }
+
+        return array( 'event_id' => 0, 'source' => '' );
+    }
+
+    private function existing_event_id_by_post_meta( $meta_key, $meta_value ) {
+        $posts = get_posts(
+            array(
+                'post_type'      => $this->event_post_types(),
+                'post_status'    => 'any',
+                'posts_per_page' => 1,
+                'fields'         => 'ids',
+                'orderby'        => 'ID',
+                'order'          => 'DESC',
+                'meta_query'     => array(
+                    array(
+                        'key'   => sanitize_key( $meta_key ),
+                        'value' => (string) $meta_value,
+                    ),
+                ),
+            )
+        );
+
+        if ( empty( $posts[0] ) ) {
+            return 0;
+        }
+
+        return $this->event_id_for_post_id( $posts[0] );
+    }
+
+    private function existing_event_id_by_exact_payload( array $payload, $location_id ) {
+        global $wpdb;
+
+        if ( empty( $payload['event'] ) || ! is_array( $payload['event'] ) ) {
+            return 0;
+        }
+
+        $event = $payload['event'];
+        $table = $wpdb->prefix . 'em_events';
+        if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+            return 0;
+        }
+
+        $event_id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT event_id FROM {$table} WHERE event_name = %s AND event_start_date = %s AND event_start_time = %s AND event_end_date = %s AND event_end_time = %s AND location_id = %d ORDER BY event_id DESC LIMIT 1",
+                isset( $event['event_name'] ) ? (string) $event['event_name'] : '',
+                isset( $event['event_start_date'] ) ? (string) $event['event_start_date'] : '',
+                isset( $event['event_start_time'] ) ? (string) $event['event_start_time'] : '',
+                isset( $event['event_end_date'] ) ? (string) $event['event_end_date'] : '',
+                isset( $event['event_end_time'] ) ? (string) $event['event_end_time'] : '',
+                absint( $location_id )
+            )
+        );
+
+        return $event_id ? absint( $event_id ) : 0;
+    }
+
+    private function event_id_for_post_id( $post_id ) {
+        if ( ! $post_id ) {
+            return 0;
+        }
+
+        if ( function_exists( 'em_get_event' ) ) {
+            $event = em_get_event( absint( $post_id ), 'post_id' );
+        } else {
+            $event = new EM_Event( absint( $post_id ), 'post_id' );
+        }
+
+        return ! empty( $event->event_id ) ? absint( $event->event_id ) : 0;
+    }
+
+    private function event_post_types() {
+        if ( defined( 'EM_POST_TYPE_EVENT' ) ) {
+            return array( EM_POST_TYPE_EVENT );
+        }
+
+        return array( 'event' );
     }
 
     private function start_trace( $candidate_id, array $payload ) {
