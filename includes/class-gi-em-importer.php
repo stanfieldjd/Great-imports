@@ -363,7 +363,12 @@ final class GI_EM_Importer {
             return '';
         }
 
-        return number_format( round( (float) $value, 6 ), 6, '.', '' );
+        $number = round( (float) $value, 6 );
+        if ( 0.0 === $number ) {
+            return '';
+        }
+
+        return number_format( $number, 6, '.', '' );
     }
 
     private function stored_pair_complete( $latitude, $longitude ) {
