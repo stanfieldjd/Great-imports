@@ -259,7 +259,6 @@ final class GI_Admin {
         echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789 or https://www.eventbrite.com/o/123456789" required> ';
         submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
         echo '</form>';
-        echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. Event URLs create or update one candidate; organizer URLs create or update candidates from discovered event links. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
         echo '</section>';
     }
 
