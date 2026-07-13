@@ -60,9 +60,10 @@ final class GI_Exploratory_Report {
         $candidates           = $this->format_candidates( $candidate_posts );
         $source_page_displays = $this->get_source_page_display_reports( $candidate_posts );
         $import_previews      = $this->get_import_previews( $candidate_posts );
-        $coverage_audits      = $this->get_coverage_audits( $candidate_posts, $source_page_displays, $import_previews );
-        $evidence             = $this->get_evidence_records();
-        $em_location_traces   = $this->get_events_manager_location_traces( $candidate_posts );
+        $coverage_audits        = $this->get_coverage_audits( $candidate_posts, $source_page_displays, $import_previews );
+        $evidence               = $this->get_evidence_records();
+        $em_location_traces     = $this->get_events_manager_location_traces( $candidate_posts );
+        $em_duplicate_locations = $this->get_events_manager_duplicate_location_audit();
 
         return array(
             'report_type'                 => 'great_imports_exploratory_report',
@@ -96,11 +97,12 @@ final class GI_Exploratory_Report {
                 'eventbrite_private_token_configured' => $this->api_client->has_private_token(),
                 'eventbrite_private_token_value'      => $this->api_client->has_private_token() ? '[configured-not-exported]' : '[not-configured]',
             ),
-            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays, $coverage_audits, $em_location_traces ),
+            'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays, $coverage_audits, $em_location_traces, $em_duplicate_locations ),
             'source_coverage_audits'      => $coverage_audits,
             'source_page_display_reports' => $source_page_displays,
             'import_previews'             => $import_previews,
             'events_manager_location_traces' => $em_location_traces,
+            'events_manager_duplicate_locations' => $em_duplicate_locations,
             'evidence_records'            => $evidence,
             'candidates'                  => $candidates,
         );
@@ -328,6 +330,200 @@ final class GI_Exploratory_Report {
         return absint( $wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM {$table} WHERE location_id = %d", $location_id ) ) );
     }
 
+    private function get_events_manager_duplicate_location_audit() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'em_locations';
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        if ( $found !== $table ) {
+            return array(
+                'available' => false,
+                'duplicate_groups' => array(),
+                'potential_duplicate_groups' => array(),
+                'trace_note' => 'Events Manager locations table is unavailable.',
+            );
+        }
+
+        $rows = $wpdb->get_results(
+            "SELECT location_id, post_id, location_name, location_address, location_town, location_state, location_postcode, location_region, location_country, location_latitude, location_longitude FROM {$table} WHERE location_status = 1 ORDER BY location_name ASC, location_address ASC, location_id ASC",
+            ARRAY_A
+        );
+        $rows                 = is_array( $rows ) ? $rows : array();
+        $duplicates           = $this->duplicate_location_groups( $rows, true );
+        $potential_duplicates = $this->duplicate_location_groups( $rows, false );
+
+        return array(
+            'available' => true,
+            'duplicate_group_count' => count( $duplicates ),
+            'potential_duplicate_group_count' => count( $potential_duplicates ),
+            'duplicate_groups' => $duplicates,
+            'potential_duplicate_groups' => $potential_duplicates,
+            'trace_note' => 'Audit only. Exact groups include normalized name, street, town, state, postcode, and country. Potential groups use the visible list-style address and expose hidden postcode/region differences. Great Imports does not merge or delete Events Manager locations from this report.',
+        );
+    }
+
+    private function duplicate_location_groups( array $rows, $include_postcode ) {
+        $groups = array();
+
+        foreach ( $rows as $row ) {
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+
+            $key = $this->duplicate_location_key( $row, $include_postcode );
+            if ( '' === $key ) {
+                continue;
+            }
+
+            if ( ! isset( $groups[ $key ] ) ) {
+                $groups[ $key ] = array(
+                    'match_key' => $key,
+                    'match_type' => $include_postcode ? 'exact_stored_address' : 'visible_address_potential_duplicate',
+                    'match_fields' => $include_postcode
+                        ? array( 'location_name', 'location_address', 'location_town', 'location_state', 'location_postcode', 'location_country' )
+                        : array( 'location_name', 'location_address', 'location_town', 'location_state', 'location_country' ),
+                    'locations' => array(),
+                );
+            }
+
+            $groups[ $key ]['locations'][] = $this->duplicate_location_row( $row );
+        }
+
+        $duplicates = array();
+        foreach ( $groups as $group ) {
+            if ( count( $group['locations'] ) < 2 ) {
+                continue;
+            }
+
+            $group['canonical_suggestion'] = $this->canonical_location_suggestion( $group['locations'] );
+            $group['hidden_field_differences'] = $this->location_hidden_field_differences( $group['locations'] );
+            $group['trace_note'] = $include_postcode
+                ? 'Exact active Events Manager location duplicate. Report only; no automatic merge or deletion.'
+                : 'Potential duplicate based on visible address fields. Check hidden_field_differences before any manual cleanup.';
+            $duplicates[] = $group;
+        }
+
+        return $duplicates;
+    }
+
+    private function duplicate_location_key( array $row, $include_postcode ) {
+        $parts = array(
+            isset( $row['location_name'] ) ? $row['location_name'] : '',
+            isset( $row['location_address'] ) ? $row['location_address'] : '',
+            isset( $row['location_town'] ) ? $row['location_town'] : '',
+            isset( $row['location_state'] ) ? $row['location_state'] : '',
+            isset( $row['location_country'] ) ? $row['location_country'] : '',
+        );
+        if ( $include_postcode ) {
+            array_splice( $parts, 4, 0, isset( $row['location_postcode'] ) ? $row['location_postcode'] : '' );
+        }
+        $parts = array_map( array( $this, 'normalized_duplicate_text' ), $parts );
+        if ( '' === implode( '', $parts ) ) {
+            return '';
+        }
+        return implode( '|', $parts );
+    }
+
+    private function normalized_duplicate_text( $value ) {
+        $value = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $value ) ) );
+        return sanitize_text_field( $value );
+    }
+
+    private function duplicate_location_row( array $row ) {
+        $location_id = isset( $row['location_id'] ) ? absint( $row['location_id'] ) : 0;
+        $post_id     = isset( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+        $latitude_present  = $this->coordinate_present( isset( $row['location_latitude'] ) ? $row['location_latitude'] : '' );
+        $longitude_present = $this->coordinate_present( isset( $row['location_longitude'] ) ? $row['location_longitude'] : '' );
+
+        return array(
+            'location_id' => $location_id,
+            'post_id' => $post_id,
+            'post_title' => $post_id ? sanitize_text_field( get_the_title( $post_id ) ) : '',
+            'admin_edit_url' => $post_id ? esc_url_raw( admin_url( 'post.php?post=' . $post_id . '&action=edit' ) ) : '',
+            'event_count' => $this->event_count_for_location( $location_id ),
+            'stored_address' => array(
+                'location_name'     => isset( $row['location_name'] ) ? sanitize_text_field( (string) $row['location_name'] ) : '',
+                'location_address'  => isset( $row['location_address'] ) ? sanitize_text_field( (string) $row['location_address'] ) : '',
+                'location_town'     => isset( $row['location_town'] ) ? sanitize_text_field( (string) $row['location_town'] ) : '',
+                'location_state'    => isset( $row['location_state'] ) ? sanitize_text_field( (string) $row['location_state'] ) : '',
+                'location_postcode' => isset( $row['location_postcode'] ) ? sanitize_text_field( (string) $row['location_postcode'] ) : '',
+                'location_region'   => isset( $row['location_region'] ) ? sanitize_text_field( (string) $row['location_region'] ) : '',
+                'location_country'  => isset( $row['location_country'] ) ? sanitize_text_field( (string) $row['location_country'] ) : '',
+            ),
+            'coordinate_state' => array(
+                'values_redacted' => true,
+                'em_locations_table' => array(
+                    'latitude_present' => $latitude_present,
+                    'longitude_present' => $longitude_present,
+                    'complete' => $latitude_present && $longitude_present,
+                ),
+            ),
+        );
+    }
+
+    private function location_hidden_field_differences( array $locations ) {
+        $fields      = array( 'location_postcode', 'location_region' );
+        $differences = array();
+
+        foreach ( $fields as $field ) {
+            $values = array();
+            foreach ( $locations as $location ) {
+                $address = isset( $location['stored_address'] ) && is_array( $location['stored_address'] ) ? $location['stored_address'] : array();
+                $values[] = isset( $address[ $field ] ) ? (string) $address[ $field ] : '';
+            }
+
+            $unique = array_values( array_unique( $values ) );
+            if ( count( $unique ) > 1 ) {
+                $differences[ $field ] = array_map( 'sanitize_text_field', $unique );
+            }
+        }
+
+        return $differences;
+    }
+
+    private function canonical_location_suggestion( array $locations ) {
+        usort(
+            $locations,
+            static function ( $a, $b ) {
+                $a_complete = ! empty( $a['coordinate_state']['em_locations_table']['complete'] ) ? 1 : 0;
+                $b_complete = ! empty( $b['coordinate_state']['em_locations_table']['complete'] ) ? 1 : 0;
+                if ( $a_complete !== $b_complete ) {
+                    return $b_complete - $a_complete;
+                }
+                $a_events = isset( $a['event_count'] ) ? (int) $a['event_count'] : 0;
+                $b_events = isset( $b['event_count'] ) ? (int) $b['event_count'] : 0;
+                if ( $a_events !== $b_events ) {
+                    return $b_events - $a_events;
+                }
+                return ( isset( $a['location_id'] ) ? (int) $a['location_id'] : 0 ) - ( isset( $b['location_id'] ) ? (int) $b['location_id'] : 0 );
+            }
+        );
+
+        $canonical = isset( $locations[0] ) ? $locations[0] : array();
+        return array(
+            'location_id' => isset( $canonical['location_id'] ) ? absint( $canonical['location_id'] ) : 0,
+            'post_id' => isset( $canonical['post_id'] ) ? absint( $canonical['post_id'] ) : 0,
+            'reason' => 'Prefers complete coordinates, then most linked events, then lowest location ID.',
+        );
+    }
+
+    private function event_count_for_location( $location_id ) {
+        global $wpdb;
+
+        $location_id = absint( $location_id );
+        if ( ! $location_id ) {
+            return 0;
+        }
+
+        $table = defined( 'EM_EVENTS_TABLE' ) ? EM_EVENTS_TABLE : $wpdb->prefix . 'em_events';
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        if ( $found !== $table ) {
+            return 0;
+        }
+
+        return absint( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE location_id = %d", $location_id ) ) );
+    }
+
     private function location_snapshot( $location_id ) {
         global $wpdb;
 
@@ -538,7 +734,7 @@ final class GI_Exploratory_Report {
      * @param array<int,array<string,mixed>> $em_location_traces Events Manager traces.
      * @return array<string,mixed>
      */
-    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports, array $coverage_audits, array $em_location_traces ) {
+    private function summarize_all( array $candidates, array $evidence, array $previews, array $display_reports, array $coverage_audits, array $em_location_traces, array $em_duplicate_locations ) {
         $summary = array(
             'total_candidates'                    => count( $candidates ),
             'total_evidence_records'              => count( $evidence ),
@@ -546,6 +742,8 @@ final class GI_Exploratory_Report {
             'total_source_page_display_reports'   => count( $display_reports ),
             'total_source_coverage_audits'        => count( $coverage_audits ),
             'total_events_manager_location_traces' => count( $em_location_traces ),
+            'total_events_manager_duplicate_location_groups' => isset( $em_duplicate_locations['duplicate_group_count'] ) ? absint( $em_duplicate_locations['duplicate_group_count'] ) : 0,
+            'total_events_manager_potential_duplicate_location_groups' => isset( $em_duplicate_locations['potential_duplicate_group_count'] ) ? absint( $em_duplicate_locations['potential_duplicate_group_count'] ) : 0,
             'events_manager_location_trace_status' => array(),
             'candidate_by_status'                 => array(),
             'candidate_by_source_type'            => array(),

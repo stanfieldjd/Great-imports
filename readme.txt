@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.48
+Stable tag: 0.2.49
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,10 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.49 =
+* Adds an Events Manager duplicate-location audit to exploratory reports.
+* Groups exact and potential active EM duplicate locations by normalized venue name/address, reports hidden postcode/region differences, linked event counts, and coordinate completeness, and suggests a canonical record without merging or deleting anything.
 
 = 0.2.48 =
 * Cleans Eventbrite description HTML before it becomes candidate/event body content by removing inline images, source styling, and oversized heading/bold wrappers while preserving text, links, lists, ticket facts, and FAQs.
