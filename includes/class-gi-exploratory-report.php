@@ -412,6 +412,12 @@ final class GI_Exploratory_Report {
             'post_id'     => $post_id,
             'post_status' => $post_id ? sanitize_text_field( (string) get_post_status( $post_id ) ) : '',
             'post_title'  => $post_id ? sanitize_text_field( get_the_title( $post_id ) ) : '',
+            'event_status' => isset( $event->event_status ) ? sanitize_text_field( (string) $event->event_status ) : '',
+            'event_start_date' => isset( $event->event_start_date ) ? sanitize_text_field( (string) $event->event_start_date ) : '',
+            'event_start_time' => isset( $event->event_start_time ) ? sanitize_text_field( (string) $event->event_start_time ) : '',
+            'event_end_date' => isset( $event->event_end_date ) ? sanitize_text_field( (string) $event->event_end_date ) : '',
+            'event_end_time' => isset( $event->event_end_time ) ? sanitize_text_field( (string) $event->event_end_time ) : '',
+            'event_timezone' => isset( $event->event_timezone ) ? sanitize_text_field( (string) $event->event_timezone ) : '',
             'location_id' => ! empty( $event->location_id ) ? absint( $event->location_id ) : 0,
             'admin_edit_url' => $post_id ? esc_url_raw( admin_url( 'post.php?post=' . $post_id . '&action=edit' ) ) : '',
         );
