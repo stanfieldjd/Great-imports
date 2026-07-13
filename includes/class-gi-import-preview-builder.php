@@ -491,9 +491,9 @@ final class GI_Import_Preview_Builder {
             'event'             => array(
                 'event_name'       => $title,
                 'event_start_date' => isset( $start['date'] ) ? $start['date'] : '',
-                'event_start_time' => isset( $start['time'] ) ? $start['time'] : '',
+                'event_start_time' => isset( $start['db_time'] ) ? $start['db_time'] : '',
                 'event_end_date'   => isset( $end['date'] ) ? $end['date'] : '',
-                'event_end_time'   => isset( $end['time'] ) ? $end['time'] : '',
+                'event_end_time'   => isset( $end['db_time'] ) ? $end['db_time'] : '',
                 'event_timezone'   => $timezone,
                 'timezone_source'  => $timezone_provenance,
                 'post_content'     => wp_kses_post( $description ),
@@ -529,6 +529,7 @@ final class GI_Import_Preview_Builder {
                 'raw'       => $datetime,
                 'date'      => '',
                 'time'      => '',
+                'db_time'   => '',
                 'label'     => $datetime,
                 'timestamp' => null,
             );
@@ -538,6 +539,7 @@ final class GI_Import_Preview_Builder {
             'raw'       => $datetime,
             'date'      => $value->format( 'Y-m-d' ),
             'time'      => $value->format( 'g:i A' ),
+            'db_time'   => $value->format( 'H:i:s' ),
             'label'     => $value->format( 'l, F j, Y g:i A' ),
             'timestamp' => $value->getTimestamp(),
         );
