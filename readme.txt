@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.47
+Stable tag: 0.2.48
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.48 =
+* Cleans Eventbrite description HTML before it becomes candidate/event body content by removing inline images, source styling, and oversized heading/bold wrappers while preserving text, links, lists, ticket facts, and FAQs.
+* Adds a server-side exact Events Manager location reuse check before creating a new location, preferring existing matching locations with coordinates.
+* Keeps the `#_OPENSTREETMAP` trace evidence intact; reports identify it as an active Events Manager format placeholder issue, not imported event content.
 
 = 0.2.47 =
 * Stops copying Events Manager location state into the separate region field during Great Imports address handoff.

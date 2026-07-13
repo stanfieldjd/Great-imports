@@ -22,7 +22,7 @@ final class GI_Candidate_Store {
         $existing_id = $this->find_existing_candidate( $source_url, $fingerprint );
 
         $title   = ! empty( $candidate['title'] ) ? sanitize_text_field( $candidate['title'] ) : __( 'Untitled Eventbrite candidate', 'great-imports' );
-        $content = ! empty( $candidate['description'] ) ? wp_kses_post( $candidate['description'] ) : '';
+        $content = ! empty( $candidate['description'] ) ? $this->public_description_content( $candidate['description'] ) : '';
 
         $post_data = array(
             'post_type'    => 'gi_candidate',
@@ -62,6 +62,34 @@ final class GI_Candidate_Store {
             'error'   => '',
             'updated' => $updated,
         );
+    }
+
+    private function public_description_content( $description ) {
+        $description = (string) $description;
+        $description = preg_replace( '/<img\b[^>]*>/i', '', $description );
+        $description = preg_replace( '/\sstyle=(["\']).*?\1/i', '', $description );
+        $description = preg_replace( '/<\/?(?:h[1-6]|strong|b|span)[^>]*>/i', '', $description );
+        $description = preg_replace( '/<div\b[^>]*>/i', '<p>', $description );
+        $description = preg_replace( '/<\/div>/i', '</p>', $description );
+
+        $allowed = array(
+            'a'          => array(
+                'href'   => true,
+                'rel'    => true,
+                'target' => true,
+            ),
+            'blockquote' => array(),
+            'br'         => array(),
+            'details'    => array(),
+            'em'         => array(),
+            'li'         => array(),
+            'ol'         => array(),
+            'p'          => array(),
+            'summary'    => array(),
+            'ul'         => array(),
+        );
+
+        return wp_kses( $description, $allowed );
     }
 
     /**

@@ -137,6 +137,30 @@ final class GI_EM_Importer {
             }
         }
 
+        $matched_existing_id = $this->find_existing_location_by_address( $payload );
+        if ( $matched_existing_id ) {
+            $before = $this->location_snapshot( $matched_existing_id );
+            if ( ! empty( $before['found'] ) ) {
+                $sync = $this->sync_location_storage( $matched_existing_id, $payload, false );
+                if ( empty( $sync['success'] ) ) {
+                    return $this->failure( $sync['message'] );
+                }
+
+                return array(
+                    'success'         => true,
+                    'location_id'     => absint( $sync['location_id'] ),
+                    'created'         => false,
+                    'before_snapshot' => $before,
+                    'after_snapshot'  => $this->location_snapshot( $sync['location_id'] ),
+                    'trace'           => array(
+                        'strategy'     => 'matched_existing',
+                        'source'       => 'server_exact_address_match',
+                        'match_reason' => 'same name, address, town, state, postcode, country',
+                        'storage_sync' => $sync['trace'],
+                    ),
+                );
+            }
+        }
         $location = new EM_Location();
         $location->location_name     = isset( $payload['location_name'] ) ? $payload['location_name'] : '';
         $location->location_address  = isset( $payload['location_address'] ) ? $payload['location_address'] : '';
@@ -170,6 +194,39 @@ final class GI_EM_Importer {
                 'storage_sync' => $sync['trace'],
             ),
         );
+    }
+
+    private function find_existing_location_by_address( array $payload ) {
+        global $wpdb;
+
+        $address = $this->sanitized_location_payload( $payload );
+        if ( '' === $address['location_name'] || '' === $address['location_address'] || '' === $address['location_town'] ) {
+            return 0;
+        }
+
+        $table = $this->location_table_name();
+        if ( ! $this->location_table_exists( $table ) ) {
+            return 0;
+        }
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT location_id, location_latitude, location_longitude FROM {$table} WHERE location_name = %s AND location_address = %s AND location_town = %s AND location_state = %s AND location_postcode = %s AND location_country = %s ORDER BY CASE WHEN location_latitude IS NOT NULL AND location_latitude != '' AND location_longitude IS NOT NULL AND location_longitude != '' THEN 0 ELSE 1 END, location_id ASC LIMIT 1",
+                $address['location_name'],
+                $address['location_address'],
+                $address['location_town'],
+                $address['location_state'],
+                $address['location_postcode'],
+                $address['location_country']
+            ),
+            ARRAY_A
+        );
+
+        if ( empty( $rows[0]['location_id'] ) ) {
+            return 0;
+        }
+
+        return absint( $rows[0]['location_id'] );
     }
 
     private function sync_location_storage( $location_id, array $payload, $update_address, $fallback_post_id = 0 ) {
