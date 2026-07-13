@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.54
+Stable tag: 0.2.55
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,9 +23,13 @@ Great Imports prepares reviewed Events Manager event and location fields for sto
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
-This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
+This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.55 =
+* Restores primary source images to imported Events Manager descriptions when a source image URL exists and the description does not already contain it.
+* Keeps inline description images preserved through candidate storage and Events Manager payload assembly.
 
 = 0.2.54 =
 * Removes obsolete imported-content repair wording from the package documentation.
