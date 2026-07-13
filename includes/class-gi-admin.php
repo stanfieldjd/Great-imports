@@ -260,7 +260,6 @@ final class GI_Admin {
         submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
         echo '</form>';
         echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. Event URLs create or update one candidate; organizer URLs create or update candidates from discovered event links. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
-        $this->last_source_search_trace();
         echo '</section>';
     }
 
@@ -356,28 +355,6 @@ final class GI_Admin {
             }
         }
         return $summary;
-    }
-
-    private function last_source_search_trace() {
-        $trace = get_option( 'great_imports_last_source_search', array() );
-        if ( ! is_array( $trace ) || empty( $trace ) ) {
-            return;
-        }
-
-        $stage   = isset( $trace['stage'] ) ? sanitize_text_field( (string) $trace['stage'] ) : '';
-        $message = isset( $trace['message'] ) ? sanitize_text_field( (string) $trace['message'] ) : '';
-        $url     = isset( $trace['submitted_url'] ) ? esc_url_raw( (string) $trace['submitted_url'] ) : '';
-
-        echo '<p class="description gi-source-search-trace">';
-        echo '<strong>' . esc_html__( 'Last Source Search:', 'great-imports' ) . '</strong> ';
-        echo esc_html( $stage );
-        if ( '' !== $url ) {
-            echo ' - ' . esc_html( $url );
-        }
-        if ( '' !== $message ) {
-            echo ' - ' . esc_html( $message );
-        }
-        echo '</p>';
     }
 
     private function render_notice() {

@@ -119,10 +119,20 @@ final class GI_Url_Validator {
      * @param string $url Eventbrite URL.
      */
     public function extract_eventbrite_organizer_id( $url ) {
-        $path = (string) wp_parse_url( $url, PHP_URL_PATH );
+        $path = rawurldecode( (string) wp_parse_url( $url, PHP_URL_PATH ) );
 
-        if ( preg_match( '#/o/(?:[^/?#]*-)?([0-9]+)#', $path, $matches ) ) {
-            return sanitize_text_field( $matches[1] );
+        if ( preg_match( '~(?:^|/)o/([^/?#]+)~i', $path, $matches ) ) {
+            $segment = trim( (string) $matches[1], '/' );
+            if ( preg_match( '/([0-9]+)$/', $segment, $id_matches ) ) {
+                return sanitize_text_field( $id_matches[1] );
+            }
+        }
+
+        if ( preg_match( '~eventbrite\.com/o/([^/?#]+)~i', rawurldecode( (string) $url ), $matches ) ) {
+            $segment = trim( (string) $matches[1], '/' );
+            if ( preg_match( '/([0-9]+)$/', $segment, $id_matches ) ) {
+                return sanitize_text_field( $id_matches[1] );
+            }
         }
 
         return '';
