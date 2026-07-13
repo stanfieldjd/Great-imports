@@ -224,7 +224,7 @@ final class GI_EM_Importer {
             update_post_meta( $post_id, '_location_town', $address['location_town'] );
             update_post_meta( $post_id, '_location_state', $address['location_state'] );
             update_post_meta( $post_id, '_location_postcode', $address['location_postcode'] );
-            update_post_meta( $post_id, '_location_region', $address['location_state'] );
+            update_post_meta( $post_id, '_location_region', '' );
             update_post_meta( $post_id, '_location_country', $address['location_country'] );
             update_post_meta( $post_id, '_location_status', 1 );
             $trace['post_meta_written'] = array( 'address', 'town', 'state', 'postcode', 'region', 'country', 'status' );
@@ -267,7 +267,7 @@ final class GI_EM_Importer {
                     'location_town'      => $address['location_town'],
                     'location_state'     => $address['location_state'],
                     'location_postcode'  => $address['location_postcode'],
-                    'location_region'    => $address['location_state'],
+                    'location_region'    => '',
                     'location_country'   => $address['location_country'],
                     'post_content'       => $post ? $post->post_content : '',
                     'location_status'    => 1,
@@ -515,7 +515,7 @@ final class GI_EM_Importer {
         $table = $wpdb->prefix . 'em_locations';
         $row   = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT location_id, post_id, location_name, location_address, location_town, location_state, location_postcode, location_country, location_latitude, location_longitude FROM {$table} WHERE location_id = %d",
+                "SELECT location_id, post_id, location_name, location_address, location_town, location_state, location_postcode, location_region, location_country, location_latitude, location_longitude FROM {$table} WHERE location_id = %d",
                 $location_id
             ),
             ARRAY_A
@@ -534,6 +534,7 @@ final class GI_EM_Importer {
             'location_town'     => isset( $row['location_town'] ) ? sanitize_text_field( (string) $row['location_town'] ) : '',
             'location_state'    => isset( $row['location_state'] ) ? sanitize_text_field( (string) $row['location_state'] ) : '',
             'location_postcode' => isset( $row['location_postcode'] ) ? sanitize_text_field( (string) $row['location_postcode'] ) : '',
+            'location_region'   => isset( $row['location_region'] ) ? sanitize_text_field( (string) $row['location_region'] ) : '',
             'location_country'  => isset( $row['location_country'] ) ? sanitize_text_field( (string) $row['location_country'] ) : '',
         );
         $coordinate_state = array(

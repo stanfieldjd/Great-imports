@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.46
+Stable tag: 0.2.47
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.47 =
+* Stops copying Events Manager location state into the separate region field during Great Imports address handoff.
+* Prevents `#_LOCATIONFULLLINE` from displaying duplicated state/region values such as `TN` twice in the Events Manager location section.
+* Adds `location_region` to location snapshots so reports can show this field before and after import.
 
 = 0.2.46 =
 * Stops adding a duplicate venue/address Location section to the Events Manager event description.

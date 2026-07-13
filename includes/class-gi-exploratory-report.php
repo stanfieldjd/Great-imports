@@ -339,7 +339,7 @@ final class GI_Exploratory_Report {
         $table = $wpdb->prefix . 'em_locations';
         $row   = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT location_id, post_id, location_name, location_address, location_town, location_state, location_postcode, location_country, location_latitude, location_longitude FROM {$table} WHERE location_id = %d",
+                "SELECT location_id, post_id, location_name, location_address, location_town, location_state, location_postcode, location_region, location_country, location_latitude, location_longitude FROM {$table} WHERE location_id = %d",
                 $location_id
             ),
             ARRAY_A
@@ -358,6 +358,7 @@ final class GI_Exploratory_Report {
             'location_town'     => isset( $row['location_town'] ) ? sanitize_text_field( (string) $row['location_town'] ) : '',
             'location_state'    => isset( $row['location_state'] ) ? sanitize_text_field( (string) $row['location_state'] ) : '',
             'location_postcode' => isset( $row['location_postcode'] ) ? sanitize_text_field( (string) $row['location_postcode'] ) : '',
+            'location_region'   => isset( $row['location_region'] ) ? sanitize_text_field( (string) $row['location_region'] ) : '',
             'location_country'  => isset( $row['location_country'] ) ? sanitize_text_field( (string) $row['location_country'] ) : '',
         );
         $coordinate_state = array(
