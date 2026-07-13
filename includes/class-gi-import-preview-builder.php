@@ -57,8 +57,8 @@ final class GI_Import_Preview_Builder {
             ),
             'reviewer_decisions'  => $this->reviewer_decisions( $post_id ),
             'images'              => array(
-                'primary_image_url' => $this->candidate_value( $post_id, 'image_url' ),
-                'planned_action'    => __( 'Actual event image should be downloaded into the WordPress Media Library and assigned as the featured image when import is later approved.', 'great-imports' ),
+                'primary_image_url' => $this->candidate_url_value( $post_id, 'image_url' ),
+                'planned_action'    => __( 'Primary source image is included in the Events Manager description when the source provides one and it is not already present inline.', 'great-imports' ),
                 'excluded'          => array(
                     __( 'tracking pixels', 'great-imports' ),
                     __( 'UI icons', 'great-imports' ),
@@ -110,6 +110,11 @@ final class GI_Import_Preview_Builder {
     private function assemble_description_html( $candidate, $post_id, array $start, array $end, array $ticket_classes, array $faqs ) {
         $html     = '';
         $overview = trim( (string) $candidate->post_content );
+        $image    = $this->primary_image_html( $post_id, $overview );
+
+        if ( '' !== $image ) {
+            $html .= $image;
+        }
 
         if ( '' !== $overview ) {
             $html .= '<h2>' . esc_html__( 'Overview', 'great-imports' ) . '</h2>';
@@ -121,6 +126,24 @@ final class GI_Import_Preview_Builder {
         $html .= $this->faq_section_html( $faqs );
 
         return $html;
+    }
+
+    private function primary_image_html( $post_id, $overview ) {
+        $image_url = $this->candidate_url_value( $post_id, 'image_url' );
+        if ( '' === $image_url || $this->html_contains_url( $overview, $image_url ) ) {
+            return '';
+        }
+
+        $alt = $this->candidate_value( $post_id, 'title', '', get_the_title( $post_id ) );
+
+        return '<p><img src="' . esc_url( $image_url ) . '" alt="' . esc_attr( $alt ) . '" /></p>';
+    }
+
+    private function html_contains_url( $html, $url ) {
+        $html = html_entity_decode( (string) $html, ENT_QUOTES, 'UTF-8' );
+        $url  = esc_url_raw( (string) $url );
+
+        return '' !== $url && false !== strpos( $html, $url );
     }
 
     private function ticket_section_html( $post_id, array $ticket_classes ) {
@@ -328,6 +351,23 @@ final class GI_Import_Preview_Builder {
         $value        = $this->meta( $post_id, $fallback_key );
 
         return '' !== $value ? $value : sanitize_text_field( (string) $default );
+    }
+
+    private function candidate_url_value( $post_id, $key, $source_key = '', $default = '' ) {
+        $key        = sanitize_key( $key );
+        $source_key = '' !== $source_key ? sanitize_key( $source_key ) : $key;
+
+        $review_value = get_post_meta( absint( $post_id ), '_gi_review_' . $key, true );
+        if ( ! is_array( $review_value ) && ! is_object( $review_value ) && '' !== trim( (string) $review_value ) ) {
+            return esc_url_raw( (string) $review_value );
+        }
+
+        $source_value = get_post_meta( absint( $post_id ), '_gi_' . $source_key, true );
+        if ( ! is_array( $source_value ) && ! is_object( $source_value ) && '' !== trim( (string) $source_value ) ) {
+            return esc_url_raw( (string) $source_value );
+        }
+
+        return esc_url_raw( (string) $default );
     }
 
     private function review_meta( $post_id, $key ) {
