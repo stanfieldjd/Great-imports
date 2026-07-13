@@ -80,6 +80,150 @@ final class GI_EM_Importer {
         );
     }
 
+    public function cleanup_imported_event_content() {
+        if ( ! class_exists( 'EM_Event' ) ) {
+            return $this->failure( __( 'Events Manager event class is unavailable.', 'great-imports' ) );
+        }
+
+        $candidates = get_posts(
+            array(
+                'post_type'      => 'gi_candidate',
+                'post_status'    => 'any',
+                'posts_per_page' => -1,
+                'meta_query'     => array(
+                    array(
+                        'key'     => '_gi_em_event_id',
+                        'compare' => 'EXISTS',
+                    ),
+                ),
+            )
+        );
+
+        $results = array(
+            'updated'       => 0,
+            'already_clean' => 0,
+            'skipped'       => 0,
+            'failed'        => 0,
+            'items'         => array(),
+        );
+
+        foreach ( $candidates as $candidate ) {
+            $item   = $this->cleanup_candidate_event_content( $candidate );
+            $status = isset( $item['status'] ) ? $item['status'] : 'failed';
+            if ( isset( $results[ $status ] ) ) {
+                $results[ $status ]++;
+            } else {
+                $results['failed']++;
+            }
+            $results['items'][] = $item;
+        }
+
+        update_option( 'gi_last_imported_event_content_cleanup', $results, false );
+
+        $message = sprintf(
+            __( 'Imported event body cleanup complete: %1$d updated, %2$d already clean, %3$d skipped, %4$d failed.', 'great-imports' ),
+            $results['updated'],
+            $results['already_clean'],
+            $results['skipped'],
+            $results['failed']
+        );
+
+        return array(
+            'success'     => 0 === $results['failed'],
+            'message'     => $message,
+            'event_id'    => 0,
+            'location_id' => 0,
+            'results'     => $results,
+        );
+    }
+
+    private function cleanup_candidate_event_content( $candidate ) {
+        $candidate_id = isset( $candidate->ID ) ? absint( $candidate->ID ) : 0;
+        $event_id     = absint( get_post_meta( $candidate_id, '_gi_em_event_id', true ) );
+
+        if ( ! $candidate_id || ! $event_id ) {
+            return array(
+                'candidate_post_id' => $candidate_id,
+                'em_event_id'       => $event_id,
+                'status'            => 'skipped',
+                'message'           => 'Candidate is not linked to an Events Manager event.',
+            );
+        }
+
+        $preview = $this->preview_builder->build_for_candidate( $candidate );
+        $payload = isset( $preview['events_manager_payload'] ) && is_array( $preview['events_manager_payload'] ) ? $preview['events_manager_payload'] : array();
+        if ( empty( $payload['ready_for_save'] ) || empty( $payload['event']['post_content'] ) ) {
+            return array(
+                'candidate_post_id' => $candidate_id,
+                'em_event_id'       => $event_id,
+                'status'            => 'skipped',
+                'message'           => 'Candidate payload is not ready for body cleanup.',
+            );
+        }
+
+        $event = function_exists( 'em_get_event' ) ? em_get_event( $event_id ) : new EM_Event( $event_id );
+        if ( ! $event || empty( $event->event_id ) ) {
+            return array(
+                'candidate_post_id' => $candidate_id,
+                'em_event_id'       => $event_id,
+                'status'            => 'failed',
+                'message'           => 'Linked Events Manager event could not be loaded.',
+            );
+        }
+
+        $post_id      = ! empty( $event->post_id ) ? absint( $event->post_id ) : 0;
+        $before       = $post_id ? (string) get_post_field( 'post_content', $post_id, 'raw' ) : ( isset( $event->post_content ) ? (string) $event->post_content : '' );
+        $after        = (string) $payload['event']['post_content'];
+        $before_hash  = '' !== $before ? hash( 'sha256', $before ) : '';
+        $after_hash   = '' !== $after ? hash( 'sha256', $after ) : '';
+        $had_good_to_know = $this->contains_generated_good_to_know_section( $before );
+
+        if ( $before_hash === $after_hash ) {
+            $trace = array(
+                'candidate_post_id' => $candidate_id,
+                'em_event_id'       => $event_id,
+                'em_event_post_id'  => $post_id,
+                'status'            => 'already_clean',
+                'before_sha256'     => $before_hash,
+                'after_sha256'      => $after_hash,
+                'had_generated_good_to_know_before' => $had_good_to_know,
+                'cleaned_at'        => current_time( 'mysql' ),
+            );
+            update_post_meta( $candidate_id, '_gi_content_cleanup_trace', $trace );
+            return $trace;
+        }
+
+        $event->post_content = $after;
+        $event->event_notes  = $after;
+
+        if ( ! method_exists( $event, 'save' ) || ! $event->save() || empty( $event->event_id ) ) {
+            return array(
+                'candidate_post_id' => $candidate_id,
+                'em_event_id'       => $event_id,
+                'status'            => 'failed',
+                'before_sha256'     => $before_hash,
+                'after_sha256'      => $after_hash,
+                'message'           => $this->object_error( $event, __( 'Events Manager event body could not be cleaned.', 'great-imports' ) ),
+            );
+        }
+
+        $trace = array(
+            'candidate_post_id' => $candidate_id,
+            'em_event_id'       => absint( $event->event_id ),
+            'em_event_post_id'  => ! empty( $event->post_id ) ? absint( $event->post_id ) : $post_id,
+            'status'            => 'updated',
+            'before_sha256'     => $before_hash,
+            'after_sha256'      => $after_hash,
+            'had_generated_good_to_know_before' => $had_good_to_know,
+            'cleaned_at'        => current_time( 'mysql' ),
+            'scope'             => 'event_body_and_notes_only',
+        );
+        update_post_meta( $candidate_id, '_gi_content_cleanup_trace', $trace );
+        update_post_meta( $candidate_id, '_gi_content_cleaned_at', current_time( 'mysql' ) );
+
+        return $trace;
+    }
+
     private function resolve_location( $candidate_id, array $payload ) {
         $selected_id = isset( $payload['em_location_id'] ) ? absint( $payload['em_location_id'] ) : 0;
 
@@ -696,6 +840,10 @@ final class GI_EM_Importer {
 
     private function contains_location_map_placeholder( $value ) {
         return 1 === preg_match( '/#_(?:LOCATION)?MAP(?:\{[^}]*\})?(?![A-Z0-9_])/i', (string) $value );
+    }
+
+    private function contains_generated_good_to_know_section( $value ) {
+        return 1 === preg_match( '/<h2[^>]*>\s*Good to know\s*<\/h2>\s*<ul>\s*<li>\s*Duration:/i', (string) $value );
     }
 
     private function placeholder_markers( $value ) {
