@@ -31,7 +31,6 @@ final class GI_Admin {
         add_action( 'admin_post_gi_eventbrite_import_once', array( $this, 'handle_eventbrite_import_once' ) );
         add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
-        add_action( 'admin_post_gi_cleanup_imported_event_content', array( $this, 'handle_cleanup_imported_event_content' ) );
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
         add_action( 'admin_post_gi_save_candidate_field', array( $this, 'handle_save_candidate_field' ) );
         add_action( 'admin_post_gi_import_candidate_to_em', array( $this, 'handle_import_candidate_to_em' ) );
@@ -146,14 +145,6 @@ final class GI_Admin {
         $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], $candidate_id );
     }
 
-    public function handle_cleanup_imported_event_content() {
-        $this->guard( 'clean imported Events Manager event content' );
-        check_admin_referer( 'gi_cleanup_imported_event_content' );
-
-        $result = $this->em_importer->cleanup_imported_event_content();
-        $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], 0 );
-    }
-
     public function handle_manual_data_removal() {
         $this->guard( 'remove Great Imports data' );
         check_admin_referer( 'gi_manual_data_removal' );
@@ -185,7 +176,6 @@ final class GI_Admin {
         $this->version_panel();
         $this->settings_panel();
         $this->report_panel();
-        $this->content_cleanup_panel();
         $this->manual_data_removal();
         echo '</aside>';
 
@@ -268,19 +258,6 @@ final class GI_Admin {
         wp_nonce_field( 'gi_download_exploratory_report' );
         echo '<input type="hidden" name="action" value="gi_download_exploratory_report">';
         submit_button( __( 'Download report', 'great-imports' ), 'secondary', 'submit', false );
-        echo '</form>';
-        echo '</div></details>';
-    }
-
-    private function content_cleanup_panel() {
-        echo '<details class="gi-utility-panel">';
-        echo '<summary><span>' . esc_html__( 'Imported Content Cleanup', 'great-imports' ) . '</span></summary>';
-        echo '<div class="gi-utility-body">';
-        echo '<p>' . esc_html__( 'Rebuilds body content for already-linked Events Manager events from the current reviewed candidate preview. This updates only event body/notes content; it does not change locations, coordinates, source evidence, duplicate-location records, or ticketing data outside the body.', 'great-imports' ) . '</p>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        wp_nonce_field( 'gi_cleanup_imported_event_content' );
-        echo '<input type="hidden" name="action" value="gi_cleanup_imported_event_content">';
-        submit_button( __( 'Clean Imported Event Bodies', 'great-imports' ), 'secondary', 'submit', false );
         echo '</form>';
         echo '</div></details>';
     }

@@ -52,6 +52,7 @@ final class GI_Plugin {
      */
     public function boot() {
         add_action( 'init', array( 'GI_Post_Types', 'register' ) );
+        add_action( 'admin_init', array( $this, 'repair_events_manager_single_event_format' ) );
 
         if ( is_admin() ) {
             $api_client       = new GI_Eventbrite_API_Client();
@@ -78,5 +79,36 @@ final class GI_Plugin {
             );
             $admin->register_hooks();
         }
+    }
+
+    public function repair_events_manager_single_event_format() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $format = get_option( 'dbem_single_event_format', null );
+        if ( null === $format && function_exists( 'em_get_option' ) ) {
+            $format = em_get_option( 'dbem_single_event_format' );
+        }
+        if ( ! is_string( $format ) || '' === $format || false === stripos( $format, '#_OPENSTREETMAP' ) ) {
+            return;
+        }
+
+        $repaired = preg_replace( '/#_OPENSTREETMAP\b/i', '#_LOCATIONMAP', $format );
+        if ( ! is_string( $repaired ) || $repaired === $format ) {
+            return;
+        }
+
+        update_option( 'dbem_single_event_format', $repaired );
+        update_option(
+            'gi_em_single_event_format_repair',
+            array(
+                'repaired_at' => current_time( 'mysql' ),
+                'from'        => '#_OPENSTREETMAP',
+                'to'          => '#_LOCATIONMAP',
+                'reason'      => 'Events Manager rendered #_OPENSTREETMAP as literal text in single event output.',
+            ),
+            false
+        );
     }
 }

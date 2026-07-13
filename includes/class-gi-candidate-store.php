@@ -66,7 +66,6 @@ final class GI_Candidate_Store {
 
     private function public_description_content( $description ) {
         $description = (string) $description;
-        $description = preg_replace( '/<img\b[^>]*>/i', '', $description );
         $description = preg_replace( '/\sstyle=(["\']).*?\1/i', '', $description );
         $description = preg_replace( '/<\/?(?:h[1-6]|strong|b|span)[^>]*>/i', '', $description );
         $description = preg_replace( '/<div\b[^>]*>/i', '<p>', $description );
@@ -82,6 +81,16 @@ final class GI_Candidate_Store {
             'br'         => array(),
             'details'    => array(),
             'em'         => array(),
+            'img'        => array(
+                'alt'      => true,
+                'decoding' => true,
+                'height'   => true,
+                'loading'  => true,
+                'sizes'    => true,
+                'src'      => true,
+                'srcset'   => true,
+                'width'    => true,
+            ),
             'li'         => array(),
             'ol'         => array(),
             'p'          => array(),
