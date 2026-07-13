@@ -81,6 +81,78 @@ final class GI_EM_Importer {
         );
     }
 
+    public function import_recurring_candidate( $candidate_id ) {
+        $candidate_id = absint( $candidate_id );
+        $candidate    = get_post( $candidate_id );
+
+        if ( ! $candidate || 'gi_candidate' !== $candidate->post_type ) {
+            return $this->failure( __( 'Candidate could not be found.', 'great-imports' ) );
+        }
+        if ( ! class_exists( 'EM_Event' ) || ! class_exists( 'EM_Location' ) ) {
+            return $this->failure( __( 'Events Manager event/location classes are unavailable.', 'great-imports' ) );
+        }
+        if ( ! class_exists( 'EM\\Recurrences\\Recurrence_Set' ) || ! class_exists( 'EM\\Timerange' ) ) {
+            return $this->failure( __( 'Events Manager recurring event classes are unavailable.', 'great-imports' ) );
+        }
+
+        $preview = $this->preview_builder->build_for_candidate( $candidate );
+        $payload = isset( $preview['events_manager_payload'] ) && is_array( $preview['events_manager_payload'] ) ? $preview['events_manager_payload'] : array();
+        $trace   = $this->start_trace( $candidate_id, $payload );
+        $trace['rule'] = 'Great Imports saves recurring candidates through Events Manager repeating event and recurrence-set objects.';
+
+        if ( empty( $payload['ready_for_save'] ) ) {
+            $errors  = isset( $payload['validation']['errors'] ) && is_array( $payload['validation']['errors'] ) ? $payload['validation']['errors'] : array();
+            $message = empty( $errors ) ? __( 'Candidate payload is not ready for recurring import.', 'great-imports' ) : implode( ' ', $errors );
+            $this->finish_trace( $candidate_id, $trace, false, $message, '_gi_em_recurring_import_trace' );
+            return $this->failure( $message );
+        }
+
+        if ( ! $this->is_recurring_candidate( $candidate_id, $payload ) ) {
+            $message = __( 'Candidate does not have a recurring date range or series marker.', 'great-imports' );
+            $this->finish_trace( $candidate_id, $trace, false, $message, '_gi_em_recurring_import_trace' );
+            return $this->failure( $message );
+        }
+
+        $location_result = $this->resolve_location( $candidate_id, $payload['location'] );
+        $trace['during']['location_resolution'] = isset( $location_result['trace'] ) ? $location_result['trace'] : array();
+        $trace['snapshots']['location_before']  = isset( $location_result['before_snapshot'] ) ? $location_result['before_snapshot'] : array();
+        $trace['snapshots']['location_after_location_save'] = isset( $location_result['after_snapshot'] ) ? $location_result['after_snapshot'] : array();
+        if ( ! $location_result['success'] ) {
+            $this->finish_trace( $candidate_id, $trace, false, $location_result['message'], '_gi_em_recurring_import_trace' );
+            return $location_result;
+        }
+
+        $event_result = $this->save_recurring_event( $candidate_id, $payload, $location_result['location_id'] );
+        $trace['during']['recurring_event_save'] = array(
+            'existing_em_event_id' => isset( $event_result['existing_event_id'] ) ? absint( $event_result['existing_event_id'] ) : 0,
+            'existing_match_source' => isset( $event_result['existing_match_source'] ) ? sanitize_key( (string) $event_result['existing_match_source'] ) : '',
+            'saved_em_event_id'    => isset( $event_result['event_id'] ) ? absint( $event_result['event_id'] ) : 0,
+            'recurrence_set_id'    => isset( $event_result['recurrence_set_id'] ) ? absint( $event_result['recurrence_set_id'] ) : 0,
+            'success'              => ! empty( $event_result['success'] ),
+        );
+        $trace['snapshots']['event_after_save'] = ! empty( $event_result['event_id'] ) ? $this->event_snapshot( $event_result['event_id'] ) : array();
+        $trace['snapshots']['location_after_event_save'] = $this->location_snapshot( $location_result['location_id'] );
+        if ( ! $event_result['success'] ) {
+            $this->finish_trace( $candidate_id, $trace, false, $event_result['message'], '_gi_em_recurring_import_trace' );
+            return $event_result;
+        }
+
+        update_post_meta( $candidate_id, '_gi_em_recurring_event_id', $event_result['event_id'] );
+        update_post_meta( $candidate_id, '_gi_em_location_id', $location_result['location_id'] );
+        update_post_meta( $candidate_id, '_gi_recurring_imported_at', current_time( 'mysql' ) );
+        update_post_meta( $candidate_id, '_gi_candidate_status', 'recurring_imported' );
+        update_post_meta( $candidate_id, '_gi_review_review_status', 'recurring_imported' );
+        $success_message = sprintf( __( 'Candidate saved as Events Manager recurring event %d.', 'great-imports' ), $event_result['event_id'] );
+        $this->finish_trace( $candidate_id, $trace, true, $success_message, '_gi_em_recurring_import_trace' );
+
+        return array(
+            'success'     => true,
+            'message'     => $success_message,
+            'event_id'    => $event_result['event_id'],
+            'location_id' => $location_result['location_id'],
+        );
+    }
+
     private function resolve_location( $candidate_id, array $payload ) {
         $selected_id = isset( $payload['em_location_id'] ) ? absint( $payload['em_location_id'] ) : 0;
 
@@ -514,6 +586,167 @@ final class GI_EM_Importer {
         return array( 'success' => true, 'event_id' => absint( $event->event_id ), 'existing_event_id' => $existing_id, 'existing_match_source' => $existing_source );
     }
 
+    private function save_recurring_event( $candidate_id, array $payload, $location_id ) {
+        $existing_resolution = $this->existing_recurring_event_for_payload( $candidate_id, $payload, $location_id );
+        $existing_id         = isset( $existing_resolution['event_id'] ) ? absint( $existing_resolution['event_id'] ) : 0;
+        $existing_source     = isset( $existing_resolution['source'] ) ? sanitize_key( (string) $existing_resolution['source'] ) : '';
+
+        if ( $existing_id ) {
+            if ( function_exists( 'em_get_event' ) ) {
+                $event = em_get_event( $existing_id );
+            } else {
+                $event = new EM_Event( $existing_id );
+            }
+            if ( ! $event || empty( $event->event_id ) ) {
+                return $this->failure( __( 'Previously saved recurring Events Manager event could not be loaded; no duplicate was created.', 'great-imports' ) );
+            }
+        } else {
+            $event = new EM_Event();
+        }
+
+        $data = $payload['event'];
+        $event->event_type       = 'repeating';
+        $event->post_type        = 'event-recurring';
+        $event->event_archetype  = defined( 'EM_POST_TYPE_EVENT' ) ? EM_POST_TYPE_EVENT : 'event';
+        $event->event_name       = isset( $data['event_name'] ) ? $data['event_name'] : '';
+        $event->event_start_date = isset( $data['event_start_date'] ) ? $data['event_start_date'] : '';
+        $event->event_start_time = isset( $data['event_start_time'] ) ? $data['event_start_time'] : '';
+        $event->event_end_date   = isset( $data['event_end_date'] ) ? $data['event_end_date'] : '';
+        $event->event_end_time   = isset( $data['event_end_time'] ) ? $data['event_end_time'] : '';
+        $event->event_timezone   = isset( $data['event_timezone'] ) ? $data['event_timezone'] : '';
+        $event->event_status     = 1;
+        $event->event_owner      = get_current_user_id();
+        $event->location_id      = absint( $location_id );
+        $event->post_content     = isset( $data['post_content'] ) ? $data['post_content'] : '';
+        $event->event_notes      = $event->post_content;
+
+        $recurrence = $this->recurrence_payload_from_event_data( $data );
+        if ( empty( $recurrence['success'] ) ) {
+            return $this->failure( $recurrence['message'] );
+        }
+
+        $this->apply_daily_recurrence_set( $event, $recurrence );
+
+        if ( ! method_exists( $event, 'save' ) || ! $event->save() || empty( $event->event_id ) ) {
+            return $this->failure( $this->object_error( $event, __( 'Events Manager recurring event could not be saved.', 'great-imports' ) ) );
+        }
+
+        $post_id = ! empty( $event->post_id ) ? absint( $event->post_id ) : 0;
+        if ( $post_id ) {
+            update_post_meta( $post_id, '_gi_candidate_post_id', $candidate_id );
+            update_post_meta( $post_id, '_gi_source_url', isset( $payload['source_identity']['source_url'] ) ? $payload['source_identity']['source_url'] : '' );
+            update_post_meta( $post_id, '_gi_eventbrite_event_id', isset( $payload['source_identity']['eventbrite_event_id'] ) ? $payload['source_identity']['eventbrite_event_id'] : '' );
+            update_post_meta( $post_id, '_gi_fingerprint', isset( $payload['source_identity']['fingerprint'] ) ? $payload['source_identity']['fingerprint'] : '' );
+            update_post_meta( $post_id, '_event_type', 'repeating' );
+        }
+
+        return array(
+            'success'               => true,
+            'event_id'              => absint( $event->event_id ),
+            'recurrence_set_id'     => $this->recurrence_set_id_for_event( $event ),
+            'existing_event_id'     => $existing_id,
+            'existing_match_source' => $existing_source,
+        );
+    }
+
+    private function recurrence_payload_from_event_data( array $data ) {
+        $start_date = isset( $data['event_start_date'] ) ? (string) $data['event_start_date'] : '';
+        $end_date   = isset( $data['event_end_date'] ) ? (string) $data['event_end_date'] : '';
+        $start_time = isset( $data['event_start_time'] ) ? $this->time_for_em( $data['event_start_time'], '00:00:00' ) : '00:00:00';
+        $end_time   = isset( $data['event_end_time'] ) ? $this->time_for_em( $data['event_end_time'], '23:59:59' ) : '23:59:59';
+
+        if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_date ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_date ) ) {
+            return array( 'success' => false, 'message' => __( 'Recurring candidate needs valid start and end dates.', 'great-imports' ) );
+        }
+        if ( strtotime( $start_date ) >= strtotime( $end_date ) ) {
+            return array( 'success' => false, 'message' => __( 'Recurring candidate needs an end date after the start date.', 'great-imports' ) );
+        }
+
+        return array(
+            'success'    => true,
+            'start_date' => $start_date,
+            'end_date'   => $end_date,
+            'start_time' => $start_time,
+            'end_time'   => $end_time,
+            'timezone'   => isset( $data['event_timezone'] ) ? (string) $data['event_timezone'] : '',
+            'duration'   => strtotime( '2000-01-01 ' . $end_time ) <= strtotime( '2000-01-01 ' . $start_time ) ? 1 : 0,
+        );
+    }
+
+    private function apply_daily_recurrence_set( $event, array $recurrence ) {
+        $sets = $event->get_recurrence_sets();
+        $set  = ! empty( $sets->default ) ? $sets->default : new \EM\Recurrences\Recurrence_Set( $event );
+
+        $set->event               = $event;
+        $set->recurrence_type     = 'include';
+        $set->recurrence_order    = 1;
+        $set->recurrence_freq     = 'daily';
+        $set->recurrence_interval = 1;
+        $set->recurrence_byday    = '';
+        $set->recurrence_byweekno = 0;
+        $set->recurrence_dates    = array();
+        $set->recurrence_start_date = $recurrence['start_date'];
+        $set->recurrence_end_date   = $recurrence['end_date'];
+        $set->recurrence_start_time = $recurrence['start_time'];
+        $set->recurrence_end_time   = $recurrence['end_time'];
+        $set->recurrence_duration   = absint( $recurrence['duration'] );
+        $set->recurrence_all_day    = 0;
+        $set->recurrence_timezone   = $recurrence['timezone'];
+        $set->recurrence_status     = 1;
+        if ( method_exists( $set, 'set_reschedule' ) ) {
+            $set->set_reschedule( true );
+        }
+
+        $timeranges = $set->get_timeranges();
+        $existing_timeranges = method_exists( $timeranges, 'get_timeranges' ) ? $timeranges->get_timeranges() : array();
+        if ( empty( $existing_timeranges ) ) {
+            $timeranges->add(
+                array(
+                    'timerange_start'   => $recurrence['start_time'],
+                    'timerange_end'     => $recurrence['end_time'],
+                    'timerange_all_day' => 0,
+                )
+            );
+        } else {
+            foreach ( $existing_timeranges as $timerange ) {
+                $timerange->timerange_start   = $recurrence['start_time'];
+                $timerange->timerange_end     = $recurrence['end_time'];
+                $timerange->timerange_all_day = 0;
+                break;
+            }
+        }
+        $timeranges->allow_edit = true;
+
+        $sets->event = $event;
+        $sets->include = array( $set );
+        $sets->exclude = array();
+        $sets->default = $set;
+        $sets->reschedule = true;
+        $event->recurrence_sets = $sets;
+        $event->recurrence_set  = $set;
+    }
+
+    private function time_for_em( $value, $fallback ) {
+        if ( preg_match( '/^(\d{2}:\d{2})(?::(\d{2}))?$/', (string) $value, $matches ) ) {
+            return $matches[1] . ':' . ( isset( $matches[2] ) && '' !== $matches[2] ? $matches[2] : '00' );
+        }
+
+        return $fallback;
+    }
+
+    private function recurrence_set_id_for_event( $event ) {
+        if ( ! is_object( $event ) || ! method_exists( $event, 'get_recurrence_sets' ) ) {
+            return 0;
+        }
+
+        $sets = $event->get_recurrence_sets();
+        if ( ! empty( $sets->default->recurrence_set_id ) ) {
+            return absint( $sets->default->recurrence_set_id );
+        }
+
+        return 0;
+    }
+
     private function existing_event_for_payload( $candidate_id, array $payload, $location_id ) {
         $candidate_event_id = absint( get_post_meta( $candidate_id, '_gi_em_event_id', true ) );
         if ( $candidate_event_id ) {
@@ -541,10 +774,38 @@ final class GI_EM_Importer {
         return array( 'event_id' => 0, 'source' => '' );
     }
 
-    private function existing_event_id_by_post_meta( $meta_key, $meta_value ) {
+    private function existing_recurring_event_for_payload( $candidate_id, array $payload, $location_id ) {
+        $candidate_event_id = absint( get_post_meta( $candidate_id, '_gi_em_recurring_event_id', true ) );
+        if ( $candidate_event_id ) {
+            return array( 'event_id' => $candidate_event_id, 'source' => 'candidate_em_recurring_event_id' );
+        }
+
+        $identity = isset( $payload['source_identity'] ) && is_array( $payload['source_identity'] ) ? $payload['source_identity'] : array();
+        foreach ( array( 'eventbrite_event_id', 'fingerprint', 'source_url' ) as $key ) {
+            $value = isset( $identity[ $key ] ) ? trim( (string) $identity[ $key ] ) : '';
+            if ( '' === $value ) {
+                continue;
+            }
+
+            $event_id = $this->existing_event_id_by_post_meta( '_gi_' . $key, $value, $this->recurring_event_post_types() );
+            if ( $event_id ) {
+                return array( 'event_id' => $event_id, 'source' => $key );
+            }
+        }
+
+        $event_id = $this->existing_recurring_event_id_by_exact_payload( $payload, $location_id );
+        if ( $event_id ) {
+            return array( 'event_id' => $event_id, 'source' => 'exact_recurring_event_fields' );
+        }
+
+        return array( 'event_id' => 0, 'source' => '' );
+    }
+
+    private function existing_event_id_by_post_meta( $meta_key, $meta_value, array $post_types = array() ) {
+        $post_types = empty( $post_types ) ? $this->event_post_types() : $post_types;
         $posts = get_posts(
             array(
-                'post_type'      => $this->event_post_types(),
+                'post_type'      => $post_types,
                 'post_status'    => 'any',
                 'posts_per_page' => 1,
                 'fields'         => 'ids',
@@ -564,6 +825,35 @@ final class GI_EM_Importer {
         }
 
         return $this->event_id_for_post_id( $posts[0] );
+    }
+
+    private function existing_recurring_event_id_by_exact_payload( array $payload, $location_id ) {
+        global $wpdb;
+
+        if ( empty( $payload['event'] ) || ! is_array( $payload['event'] ) ) {
+            return 0;
+        }
+
+        $event = $payload['event'];
+        $table = $wpdb->prefix . 'em_events';
+        if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+            return 0;
+        }
+
+        $event_id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT event_id FROM {$table} WHERE event_type = %s AND event_name = %s AND event_start_date = %s AND event_start_time = %s AND event_end_date = %s AND event_end_time = %s AND location_id = %d ORDER BY event_id DESC LIMIT 1",
+                'repeating',
+                isset( $event['event_name'] ) ? (string) $event['event_name'] : '',
+                isset( $event['event_start_date'] ) ? (string) $event['event_start_date'] : '',
+                isset( $event['event_start_time'] ) ? (string) $event['event_start_time'] : '',
+                isset( $event['event_end_date'] ) ? (string) $event['event_end_date'] : '',
+                isset( $event['event_end_time'] ) ? (string) $event['event_end_time'] : '',
+                absint( $location_id )
+            )
+        );
+
+        return $event_id ? absint( $event_id ) : 0;
     }
 
     private function existing_event_id_by_exact_payload( array $payload, $location_id ) {
@@ -616,6 +906,30 @@ final class GI_EM_Importer {
         return array( 'event' );
     }
 
+    private function recurring_event_post_types() {
+        return array( 'event-recurring' );
+    }
+
+    private function is_recurring_candidate( $candidate_id, array $payload ) {
+        $raw = maybe_unserialize( get_post_meta( absint( $candidate_id ), '_gi_raw_event', true ) );
+        if ( is_array( $raw ) ) {
+            foreach ( array( 'is_series', 'is_series_parent' ) as $key ) {
+                if ( ! empty( $raw[ $key ] ) ) {
+                    return true;
+                }
+            }
+            if ( ! empty( $raw['series_id'] ) ) {
+                return true;
+            }
+        }
+
+        $event      = isset( $payload['event'] ) && is_array( $payload['event'] ) ? $payload['event'] : array();
+        $start_date = isset( $event['event_start_date'] ) ? (string) $event['event_start_date'] : '';
+        $end_date   = isset( $event['event_end_date'] ) ? (string) $event['event_end_date'] : '';
+
+        return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_date ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_date ) && $start_date !== $end_date;
+    }
+
     private function start_trace( $candidate_id, array $payload ) {
         $location_payload = isset( $payload['location'] ) && is_array( $payload['location'] ) ? $payload['location'] : array();
 
@@ -660,11 +974,11 @@ final class GI_EM_Importer {
         );
     }
 
-    private function finish_trace( $candidate_id, array $trace, $success, $message ) {
+    private function finish_trace( $candidate_id, array $trace, $success, $message, $meta_key = '_gi_em_import_trace' ) {
         $trace['completed_at'] = current_time( 'mysql' );
         $trace['status']       = $success ? 'succeeded' : 'failed';
         $trace['message']      = sanitize_text_field( (string) $message );
-        update_post_meta( $candidate_id, '_gi_em_import_trace', $trace );
+        update_post_meta( $candidate_id, sanitize_key( $meta_key ), $trace );
     }
 
     private function location_snapshot( $location_id ) {

@@ -34,6 +34,7 @@ final class GI_Admin {
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
         add_action( 'admin_post_gi_save_candidate_field', array( $this, 'handle_save_candidate_field' ) );
         add_action( 'admin_post_gi_import_candidate_to_em', array( $this, 'handle_import_candidate_to_em' ) );
+        add_action( 'admin_post_gi_import_recurring_candidate_to_em', array( $this, 'handle_import_recurring_candidate_to_em' ) );
     }
 
     public function register_menu() {
@@ -191,6 +192,16 @@ final class GI_Admin {
         check_admin_referer( 'gi_import_candidate_to_em_' . $candidate_id );
 
         $result = $this->em_importer->import_candidate( $candidate_id );
+        $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], $candidate_id );
+    }
+
+    public function handle_import_recurring_candidate_to_em() {
+        $this->guard( 'import Great Imports recurring candidates into Events Manager' );
+
+        $candidate_id = isset( $_POST['candidate_id'] ) ? absint( $_POST['candidate_id'] ) : 0;
+        check_admin_referer( 'gi_import_recurring_candidate_to_em_' . $candidate_id );
+
+        $result = $this->em_importer->import_recurring_candidate( $candidate_id );
         $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], $candidate_id );
     }
 

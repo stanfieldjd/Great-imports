@@ -171,6 +171,12 @@ final class GI_Candidate_List_Table extends WP_List_Table {
                 $output .= '<p class="gi-imported-date">' . esc_html( $item['imported_at'] ) . '</p>';
             }
         }
+        if ( ! empty( $item['em_recurring_event_id'] ) ) {
+            $output .= '<p class="gi-imported-status">' . sprintf( esc_html__( 'Recurring: EM event #%d', 'great-imports' ), absint( $item['em_recurring_event_id'] ) ) . '</p>';
+            if ( ! empty( $item['recurring_imported_at'] ) ) {
+                $output .= '<p class="gi-imported-date">' . esc_html( $item['recurring_imported_at'] ) . '</p>';
+            }
+        }
         $button_label = ! empty( $item['em_event_id'] ) ? __( 'Update Events Manager', 'great-imports' ) : __( 'Import to Events Manager', 'great-imports' );
         $output .= '<form class="gi-import-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
         $output .= '<input type="hidden" name="action" value="gi_import_candidate_to_em">';
@@ -178,6 +184,16 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         $output .= wp_nonce_field( 'gi_import_candidate_to_em_' . absint( $item['id'] ), '_wpnonce', true, false );
         $output .= '<button type="submit" class="button button-primary button-small">' . esc_html( $button_label ) . '</button>';
         $output .= '</form>';
+
+        if ( ! empty( $item['is_recurring_candidate'] ) ) {
+            $recurring_button_label = ! empty( $item['em_recurring_event_id'] ) ? __( 'Update Recurring', 'great-imports' ) : __( 'Save Recurring', 'great-imports' );
+            $output .= '<form class="gi-import-form gi-recurring-import-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+            $output .= '<input type="hidden" name="action" value="gi_import_recurring_candidate_to_em">';
+            $output .= '<input type="hidden" name="candidate_id" value="' . absint( $item['id'] ) . '">';
+            $output .= wp_nonce_field( 'gi_import_recurring_candidate_to_em_' . absint( $item['id'] ), '_wpnonce', true, false );
+            $output .= '<button type="submit" class="button button-small">' . esc_html( $recurring_button_label ) . '</button>';
+            $output .= '</form>';
+        }
 
         return $output;
     }
@@ -227,9 +243,39 @@ final class GI_Candidate_List_Table extends WP_List_Table {
             'source_url' => (string) get_post_meta( $id, '_gi_source_url', true ),
             'em_event_id' => absint( get_post_meta( $id, '_gi_em_event_id', true ) ),
             'imported_at' => sanitize_text_field( (string) get_post_meta( $id, '_gi_imported_at', true ) ),
+            'em_recurring_event_id' => absint( get_post_meta( $id, '_gi_em_recurring_event_id', true ) ),
+            'recurring_imported_at' => sanitize_text_field( (string) get_post_meta( $id, '_gi_recurring_imported_at', true ) ),
+            'is_recurring_candidate' => $this->is_recurring_candidate( $id, GI_Candidate_Review::value( $id, 'start_date' ), GI_Candidate_Review::value( $id, 'end_date' ) ),
             'candidate_status' => sanitize_key( (string) get_post_meta( $id, '_gi_candidate_status', true ) ),
             'excerpt'    => wp_trim_words( wp_strip_all_tags( $candidate->post_content ), 28 ),
         );
+    }
+
+    private function is_recurring_candidate( $candidate_id, $start_date, $end_date ) {
+        $raw = maybe_unserialize( get_post_meta( absint( $candidate_id ), '_gi_raw_event', true ) );
+        if ( is_array( $raw ) ) {
+            foreach ( array( 'is_series', 'is_series_parent' ) as $key ) {
+                if ( ! empty( $raw[ $key ] ) ) {
+                    return true;
+                }
+            }
+            if ( ! empty( $raw['series_id'] ) ) {
+                return true;
+            }
+        }
+
+        $start_day = $this->date_part( $start_date );
+        $end_day   = $this->date_part( $end_date );
+
+        return '' !== $start_day && '' !== $end_day && $start_day !== $end_day;
+    }
+
+    private function date_part( $value ) {
+        if ( preg_match( '/^(\d{4}-\d{2}-\d{2})/', (string) $value, $matches ) ) {
+            return $matches[1];
+        }
+
+        return '';
     }
 
     private function editor_open( array $item, $group, $label ) {
