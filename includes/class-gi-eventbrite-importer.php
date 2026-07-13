@@ -69,6 +69,10 @@ final class GI_Eventbrite_Importer {
             );
         }
 
+        if ( isset( $validated['source_kind'] ) && 'organizer' === $validated['source_kind'] ) {
+            return $this->import_organizer_source( $validated, $submitted_url );
+        }
+
         $bundle = $this->evidence_store->create_bundle(
             array(
                 'source_type'          => 'eventbrite',
@@ -224,6 +228,214 @@ final class GI_Eventbrite_Importer {
         $candidate['exploratory_report_data_coverage']  = 'full_evidence_bundle_first,public_page_http,html_extraction,html_schema_event_jsonld,normalized_candidate_fields';
 
         return $this->store_candidate_result( $candidate, $evidence_result );
+    }
+
+    /**
+     * Collect candidates from an Eventbrite organizer page.
+     *
+     * @param array<string,string|bool> $validated Validated organizer URL data.
+     * @param string                    $submitted_url Submitted URL.
+     * @return array{success:bool,message:string,post_id:int,updated:bool,event:array<string,mixed>}
+     */
+    private function import_organizer_source( array $validated, $submitted_url ) {
+        $bundle = $this->evidence_store->create_bundle(
+            array(
+                'source_type'             => 'eventbrite_organizer',
+                'submitted_url'           => esc_url_raw( $submitted_url ),
+                'source_url'              => esc_url_raw( (string) $validated['url'] ),
+                'eventbrite_organizer_id' => isset( $validated['organizer_id'] ) ? sanitize_text_field( (string) $validated['organizer_id'] ) : '',
+                'capture_scope'           => 'organizer_event_links',
+            )
+        );
+
+        $organizer_page_evidence = $this->evidence_http->capture_get( (string) $validated['url'], 'public_organizer_page' );
+        $bundle                  = $this->evidence_store->add_item( $bundle, 'public_organizer_page', $organizer_page_evidence );
+
+        $html = isset( $organizer_page_evidence['body'] ) ? (string) $organizer_page_evidence['body'] : '';
+        if ( '' !== $html ) {
+            $bundle = $this->evidence_store->add_item(
+                $bundle,
+                'public_organizer_page_html_extracted_evidence',
+                $this->html_extractor->extract( $html, (string) $validated['url'] )
+            );
+        }
+
+        $event_urls = $this->event_urls_from_organizer_html( $html, (string) $validated['url'] );
+        $bundle     = $this->evidence_store->add_item(
+            $bundle,
+            'organizer_event_links',
+            array(
+                'label'              => 'organizer_event_links',
+                'capture_type'       => 'derived_links',
+                'organizer_url'      => esc_url_raw( (string) $validated['url'] ),
+                'event_url_count'    => count( $event_urls ),
+                'event_urls'         => $event_urls,
+                'selection_rule'     => 'Unique Eventbrite event detail URLs discovered in organizer page HTML/page data. Search Source creates candidates only; it does not create Events Manager events or locations.',
+            )
+        );
+        $evidence_result = $this->evidence_store->save_bundle( $bundle );
+
+        if ( empty( $organizer_page_evidence['success'] ) ) {
+            return array(
+                'success' => false,
+                'message' => __( 'Organizer page could not be fetched. Evidence was recorded for review.', 'great-imports' ),
+                'post_id' => 0,
+                'updated' => false,
+                'event'   => array(
+                    'source_type' => 'eventbrite_organizer',
+                    'source_url'  => esc_url_raw( (string) $validated['url'] ),
+                    'event_urls'  => $event_urls,
+                    'evidence_bundle_id' => ! empty( $evidence_result['success'] ) ? (int) $evidence_result['post_id'] : 0,
+                ),
+            );
+        }
+
+        if ( empty( $event_urls ) ) {
+            return array(
+                'success' => false,
+                'message' => __( 'No Eventbrite event detail links were found on that organizer page. Evidence was recorded for review.', 'great-imports' ),
+                'post_id' => 0,
+                'updated' => false,
+                'event'   => array(
+                    'source_type' => 'eventbrite_organizer',
+                    'source_url'  => esc_url_raw( (string) $validated['url'] ),
+                    'event_urls'  => array(),
+                    'evidence_bundle_id' => ! empty( $evidence_result['success'] ) ? (int) $evidence_result['post_id'] : 0,
+                ),
+            );
+        }
+
+        $results    = array();
+        $successes  = 0;
+        $updated    = 0;
+        $first_post = 0;
+
+        foreach ( $event_urls as $event_url ) {
+            $result = $this->import_once( $event_url );
+            $results[] = array(
+                'event_url' => esc_url_raw( $event_url ),
+                'success'   => ! empty( $result['success'] ),
+                'post_id'   => isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0,
+                'updated'   => ! empty( $result['updated'] ),
+                'message'   => isset( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : '',
+            );
+
+            if ( ! empty( $result['success'] ) ) {
+                $successes++;
+                if ( ! empty( $result['updated'] ) ) {
+                    $updated++;
+                }
+                if ( ! $first_post && ! empty( $result['post_id'] ) ) {
+                    $first_post = absint( $result['post_id'] );
+                }
+            }
+        }
+
+        return array(
+            'success' => $successes > 0,
+            'message' => $successes > 0
+                ? sprintf( __( 'Eventbrite organizer source collected %1$d candidate(s) for review from %2$d event link(s).', 'great-imports' ), $successes, count( $event_urls ) )
+                : __( 'Organizer event links were found, but no event candidates could be created. Evidence was recorded for review.', 'great-imports' ),
+            'post_id' => $first_post,
+            'updated' => $updated > 0,
+            'event'   => array(
+                'source_type' => 'eventbrite_organizer',
+                'source_url'  => esc_url_raw( (string) $validated['url'] ),
+                'event_urls'  => $event_urls,
+                'results'     => $results,
+                'evidence_bundle_id' => ! empty( $evidence_result['success'] ) ? (int) $evidence_result['post_id'] : 0,
+            ),
+        );
+    }
+
+    /**
+     * Extract unique Eventbrite event detail URLs from organizer page HTML/data.
+     *
+     * @param string $html Organizer page HTML.
+     * @param string $base_url Organizer page URL.
+     * @return string[]
+     */
+    private function event_urls_from_organizer_html( $html, $base_url ) {
+        $html      = html_entity_decode( (string) $html, ENT_QUOTES | ENT_HTML5 );
+        $base_url  = esc_url_raw( (string) $base_url );
+        $candidates = array();
+
+        if ( preg_match_all( '/href=["\']([^"\']+)["\']/i', $html, $matches ) ) {
+            foreach ( $matches[1] as $href ) {
+                $candidates[] = $this->absolute_url( $href, $base_url );
+            }
+        }
+
+        if ( preg_match_all( '#https?:\\\\?/\\\\?/(?:www\.)?eventbrite\.com/e/[^"\'<>\s\\\\]+#i', $html, $matches ) ) {
+            foreach ( $matches[0] as $url ) {
+                $candidates[] = str_replace( array( '\\/' ), '/', $url );
+            }
+        }
+
+        if ( preg_match_all( '#(?:https?:)?//(?:www\.)?eventbrite\.com/e/[^"\'<>\s\\\\]+#i', $html, $matches ) ) {
+            foreach ( $matches[0] as $url ) {
+                $candidates[] = 0 === strpos( $url, '//' ) ? 'https:' . $url : $url;
+            }
+        }
+
+        if ( preg_match_all( '#/e/[^"\'<>\s\\\\]*-tickets-[0-9]+#i', $html, $matches ) ) {
+            foreach ( $matches[0] as $path ) {
+                $candidates[] = $this->absolute_url( $path, $base_url );
+            }
+        }
+
+        $event_urls = array();
+        $seen_ids   = array();
+        foreach ( $candidates as $candidate_url ) {
+            $validated = $this->validator->validate_eventbrite_url( $candidate_url );
+            if ( empty( $validated['valid'] ) || empty( $validated['event_id'] ) ) {
+                continue;
+            }
+
+            $event_id = (string) $validated['event_id'];
+            if ( isset( $seen_ids[ $event_id ] ) ) {
+                continue;
+            }
+
+            $seen_ids[ $event_id ] = true;
+            $event_urls[] = esc_url_raw( (string) $validated['url'] );
+        }
+
+        return array_slice( $event_urls, 0, 20 );
+    }
+
+    /**
+     * Resolve a possibly relative URL against a base URL.
+     *
+     * @param string $url URL or path.
+     * @param string $base_url Base URL.
+     */
+    private function absolute_url( $url, $base_url ) {
+        $url = html_entity_decode( trim( (string) $url ), ENT_QUOTES | ENT_HTML5 );
+        if ( '' === $url ) {
+            return '';
+        }
+        if ( preg_match( '#^https?://#i', $url ) ) {
+            return esc_url_raw( $url );
+        }
+        if ( 0 === strpos( $url, '//' ) ) {
+            return esc_url_raw( 'https:' . $url );
+        }
+
+        $parts = wp_parse_url( $base_url );
+        if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+            return esc_url_raw( $url );
+        }
+
+        $root = $parts['scheme'] . '://' . $parts['host'];
+        if ( 0 === strpos( $url, '/' ) ) {
+            return esc_url_raw( $root . $url );
+        }
+
+        $path = isset( $parts['path'] ) ? (string) $parts['path'] : '/';
+        $dir  = preg_replace( '#/[^/]*$#', '/', $path );
+
+        return esc_url_raw( $root . $dir . $url );
     }
 
     /**

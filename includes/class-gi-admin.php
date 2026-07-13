@@ -207,10 +207,10 @@ final class GI_Admin {
         wp_nonce_field( 'gi_eventbrite_import_once' );
         echo '<input type="hidden" name="action" value="gi_eventbrite_import_once">';
         echo '<label class="screen-reader-text" for="gi_eventbrite_url">' . esc_html__( 'Eventbrite URL', 'great-imports' ) . '</label>';
-        echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789" required> ';
+        echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789 or https://www.eventbrite.com/o/123456789" required> ';
         submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
         echo '</form>';
-        echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
+        echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. Event URLs create or update one candidate; organizer URLs create or update candidates from discovered event links. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
         echo '</section>';
     }
 

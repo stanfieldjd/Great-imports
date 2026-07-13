@@ -14,7 +14,7 @@ final class GI_Url_Validator {
      * Validate an Eventbrite URL.
      *
      * @param string $url Raw URL.
-     * @return array{valid:bool,url:string,event_id:string,error:string}
+     * @return array{valid:bool,url:string,event_id:string,organizer_id:string,source_kind:string,error:string}
      */
     public function validate_eventbrite_url( $url ) {
         $url = trim( (string) $url );
@@ -24,6 +24,8 @@ final class GI_Url_Validator {
                 'valid'    => false,
                 'url'      => '',
                 'event_id' => '',
+                'organizer_id' => '',
+                'source_kind' => '',
                 'error'    => __( 'Enter an Eventbrite URL.', 'great-imports' ),
             );
         }
@@ -36,6 +38,8 @@ final class GI_Url_Validator {
                 'valid'    => false,
                 'url'      => $url,
                 'event_id' => '',
+                'organizer_id' => '',
+                'source_kind' => '',
                 'error'    => __( 'The URL must include https:// and a valid host.', 'great-imports' ),
             );
         }
@@ -45,6 +49,8 @@ final class GI_Url_Validator {
                 'valid'    => false,
                 'url'      => $url,
                 'event_id' => '',
+                'organizer_id' => '',
+                'source_kind' => '',
                 'error'    => __( 'Only HTTPS Eventbrite URLs are supported.', 'great-imports' ),
             );
         }
@@ -57,19 +63,24 @@ final class GI_Url_Validator {
                 'valid'    => false,
                 'url'      => $url,
                 'event_id' => '',
+                'organizer_id' => '',
+                'source_kind' => '',
                 'error'    => __( 'This one-time importer currently accepts Eventbrite URLs only.', 'great-imports' ),
             );
         }
 
-        $url      = $this->normalize_eventbrite_url( $url );
-        $event_id = $this->extract_eventbrite_event_id( $url );
+        $url          = $this->normalize_eventbrite_url( $url );
+        $event_id     = $this->extract_eventbrite_event_id( $url );
+        $organizer_id = $this->extract_eventbrite_organizer_id( $url );
 
-        if ( '' === $event_id ) {
+        if ( '' === $event_id && '' === $organizer_id ) {
             return array(
                 'valid'    => false,
                 'url'      => $url,
                 'event_id' => '',
-                'error'    => __( 'Use a single Eventbrite event detail URL containing a tickets event ID.', 'great-imports' ),
+                'organizer_id' => '',
+                'source_kind' => '',
+                'error'    => __( 'Use an Eventbrite event detail URL or organizer URL.', 'great-imports' ),
             );
         }
 
@@ -77,6 +88,8 @@ final class GI_Url_Validator {
             'valid'    => true,
             'url'      => $url,
             'event_id' => $event_id,
+            'organizer_id' => $organizer_id,
+            'source_kind' => '' !== $event_id ? 'event' : 'organizer',
             'error'    => '',
         );
     }
@@ -94,6 +107,21 @@ final class GI_Url_Validator {
         }
 
         if ( preg_match( '#/events/([0-9]+)#', $path, $matches ) ) {
+            return sanitize_text_field( $matches[1] );
+        }
+
+        return '';
+    }
+
+    /**
+     * Extract the numeric Eventbrite organizer ID from an organizer URL.
+     *
+     * @param string $url Eventbrite URL.
+     */
+    public function extract_eventbrite_organizer_id( $url ) {
+        $path = (string) wp_parse_url( $url, PHP_URL_PATH );
+
+        if ( preg_match( '#/o/(?:[^/?#]*-)?([0-9]+)#', $path, $matches ) ) {
             return sanitize_text_field( $matches[1] );
         }
 
