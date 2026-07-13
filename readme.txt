@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.63
+Stable tag: 0.2.64
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,10 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule automatic recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.64 =
+* Shows the Save Recurring button on every candidate row so recurring save access is not hidden by automatic detection.
+* Keeps recurring save validation in the Events Manager import handler, where missing or invalid recurring dates can be reported directly.
 
 = 0.2.63 =
 * Adds a Save Recurring button for candidates with a source series marker or multi-day date range.
