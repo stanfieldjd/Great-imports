@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.39
+Stable tag: 0.2.40
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.40 =
+* Sends Events Manager event times in database format so imported events can be listed by EM date scopes.
+* Sets imported Events Manager events to published EM status.
+* Adds event date, time, timezone, and EM status to import traces and exploratory report snapshots.
 
 = 0.2.39 =
 * Marks candidates as imported after a successful Events Manager save.
