@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.41
+Stable tag: 0.2.42
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.42 =
+* Reuses strong automatic Events Manager location matches during import instead of treating them as display-only suggestions.
+* Prefers matching Events Manager locations that already have complete coordinate storage, preserving EM-produced coordinates and avoiding duplicate coordinate-less locations.
+* Keeps Great Imports out of browser autosave and the discarded location edit-page map-refresh workflow.
 
 = 0.2.41 =
 * Treats zero coordinate placeholders as missing during Events Manager storage handoff decisions.
