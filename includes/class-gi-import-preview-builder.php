@@ -432,11 +432,20 @@ final class GI_Import_Preview_Builder {
             return '';
         }
 
-        return number_format( round( (float) $value, 6 ), 6, '.', '' );
+        $number = round( (float) $value, 6 );
+        if ( 0.0 === $number ) {
+            return '';
+        }
+
+        return number_format( $number, 6, '.', '' );
     }
 
     private function events_manager_payload( $post_id, $title, array $start, array $end, array $location, $description ) {
-        $selected_location_id = absint( $this->review_meta( $post_id, 'em_location_id' ) );
+        $review_selected_location_id = absint( $this->review_meta( $post_id, 'em_location_id' ) );
+        $matched_location            = $review_selected_location_id ? array() : $this->matched_location_for_payload( $post_id );
+        $selected_location_id        = $review_selected_location_id ? $review_selected_location_id : ( isset( $matched_location['id'] ) ? absint( $matched_location['id'] ) : 0 );
+        $location_match_source       = $review_selected_location_id ? 'reviewer_selected' : ( $selected_location_id ? 'automatic_matching_location' : '' );
+        $location_match_reason       = isset( $matched_location['reason'] ) ? sanitize_text_field( (string) $matched_location['reason'] ) : '';
         $source_timezone      = $this->candidate_value( $post_id, 'timezone' );
         $timezone             = '' !== $source_timezone ? $source_timezone : wp_timezone_string();
         $timezone_provenance  = '' !== $source_timezone ? 'source' : 'wordpress_site_fallback';
@@ -472,6 +481,9 @@ final class GI_Import_Preview_Builder {
             'location_state'    => $location['state'],
             'location_postcode' => $location['postcode'],
             'location_country'  => $location['country'],
+            'location_match_source' => $location_match_source,
+            'location_match_reason' => $location_match_reason,
+            'location_match_has_complete_coordinates' => ! empty( $matched_location['has_complete_coordinates'] ),
         );
 
         if ( ! empty( $coordinates['complete'] ) ) {
@@ -513,6 +525,80 @@ final class GI_Import_Preview_Builder {
                 'fingerprint'          => $this->meta( $post_id, 'fingerprint' ),
             ),
         );
+    }
+
+    private function matched_location_for_payload( $post_id ) {
+        if ( ! class_exists( 'GI_Candidate_Review' ) ) {
+            return array();
+        }
+
+        $suggestions = GI_Candidate_Review::location_suggestions( $post_id, 25 );
+        $fallback    = array();
+
+        foreach ( $suggestions as $suggestion ) {
+            $location_id = isset( $suggestion['id'] ) ? absint( $suggestion['id'] ) : 0;
+            $reason      = isset( $suggestion['reason'] ) ? strtolower( (string) $suggestion['reason'] ) : '';
+            $same_address = false !== strpos( $reason, 'same address' );
+            $same_name    = false !== strpos( $reason, 'same name' );
+            $same_place   = $same_address || ( $same_name && ( false !== strpos( $reason, 'same zip' ) || false !== strpos( $reason, 'same city' ) ) );
+
+            if ( ! $location_id ) {
+                continue;
+            }
+            if ( ! $same_place ) {
+                continue;
+            }
+
+            $suggestion['id'] = $location_id;
+            $suggestion['has_complete_coordinates'] = $this->em_location_has_complete_coordinates( $location_id );
+
+            if ( empty( $fallback ) ) {
+                $fallback = $suggestion;
+            }
+            if ( ! empty( $suggestion['has_complete_coordinates'] ) ) {
+                return $suggestion;
+            }
+        }
+
+        return $fallback;
+    }
+
+    private function em_location_has_complete_coordinates( $location_id ) {
+        global $wpdb;
+
+        $location_id = absint( $location_id );
+        if ( ! $location_id ) {
+            return false;
+        }
+
+        $table = defined( 'EM_LOCATIONS_TABLE' ) ? EM_LOCATIONS_TABLE : $wpdb->prefix . 'em_locations';
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        $row   = array();
+        if ( $found === $table ) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT post_id, location_latitude, location_longitude FROM {$table} WHERE location_id = %d LIMIT 1",
+                    $location_id
+                ),
+                ARRAY_A
+            );
+        }
+
+        $post_id = is_array( $row ) && ! empty( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+        if ( ! $post_id ) {
+            $post_id = $location_id;
+        }
+
+        $meta_latitude  = $this->coordinate_value( get_post_meta( $post_id, '_location_latitude', true ) );
+        $meta_longitude = $this->coordinate_value( get_post_meta( $post_id, '_location_longitude', true ) );
+        if ( '' !== $meta_latitude && '' !== $meta_longitude ) {
+            return true;
+        }
+
+        $table_latitude  = is_array( $row ) && isset( $row['location_latitude'] ) ? $this->coordinate_value( $row['location_latitude'] ) : '';
+        $table_longitude = is_array( $row ) && isset( $row['location_longitude'] ) ? $this->coordinate_value( $row['location_longitude'] ) : '';
+
+        return '' !== $table_latitude && '' !== $table_longitude;
     }
 
     private function split_local_datetime( $datetime ) {
