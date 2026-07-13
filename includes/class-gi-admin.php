@@ -100,8 +100,57 @@ final class GI_Admin {
         $this->guard( 'import events' );
         check_admin_referer( 'gi_eventbrite_import_once' );
 
-        $url    = isset( $_POST['gi_eventbrite_url'] ) ? wp_unslash( $_POST['gi_eventbrite_url'] ) : '';
-        $result = $this->importer->import_once( $url );
+        $url = isset( $_POST['gi_eventbrite_url'] ) ? wp_unslash( $_POST['gi_eventbrite_url'] ) : '';
+        $this->save_source_search_trace(
+            array(
+                'stage'          => 'received',
+                'submitted_url'  => esc_url_raw( (string) $url ),
+                'started_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                'plugin_version' => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                'admin_action'   => 'gi_eventbrite_import_once',
+                'user_id'        => get_current_user_id(),
+                'message'        => 'Source Search submitted and importer is about to run.',
+            )
+        );
+
+        try {
+            $result = $this->importer->import_once( $url );
+        } catch ( Throwable $exception ) {
+            $message = sprintf(
+                __( 'Source Search stopped before candidates could be collected: %s', 'great-imports' ),
+                $exception->getMessage()
+            );
+            $this->save_source_search_trace(
+                array(
+                    'stage'           => 'exception',
+                    'submitted_url'   => esc_url_raw( (string) $url ),
+                    'finished_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                    'plugin_version'  => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                    'admin_action'    => 'gi_eventbrite_import_once',
+                    'success'         => false,
+                    'message'         => $message,
+                    'exception_type'  => get_class( $exception ),
+                    'exception_file'  => $exception->getFile(),
+                    'exception_line'  => $exception->getLine(),
+                )
+            );
+            $this->redirect_with_notice( 'error', $message, 0 );
+        }
+
+        $this->save_source_search_trace(
+            array(
+                'stage'           => 'completed',
+                'submitted_url'   => esc_url_raw( (string) $url ),
+                'finished_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                'plugin_version'  => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                'admin_action'    => 'gi_eventbrite_import_once',
+                'success'         => ! empty( $result['success'] ),
+                'message'         => isset( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : '',
+                'post_id'         => isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0,
+                'updated'         => ! empty( $result['updated'] ),
+                'event_summary'   => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
+            )
+        );
 
         $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], absint( $result['post_id'] ) );
     }
@@ -211,6 +260,7 @@ final class GI_Admin {
         submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
         echo '</form>';
         echo '<p class="description">' . esc_html__( 'This refreshes the candidate list only. Event URLs create or update one candidate; organizer URLs create or update candidates from discovered event links. It does not create Events Manager events or locations.', 'great-imports' ) . '</p>';
+        $this->last_source_search_trace();
         echo '</section>';
     }
 
@@ -292,6 +342,42 @@ final class GI_Admin {
             )
         );
         exit;
+    }
+
+    private function save_source_search_trace( array $trace ) {
+        update_option( 'great_imports_last_source_search', $trace, false );
+    }
+
+    private function source_search_event_summary( array $event ) {
+        $summary = array();
+        foreach ( array( 'source_type', 'source_url', 'event_urls', 'results', 'evidence_bundle_id' ) as $key ) {
+            if ( isset( $event[ $key ] ) ) {
+                $summary[ $key ] = $event[ $key ];
+            }
+        }
+        return $summary;
+    }
+
+    private function last_source_search_trace() {
+        $trace = get_option( 'great_imports_last_source_search', array() );
+        if ( ! is_array( $trace ) || empty( $trace ) ) {
+            return;
+        }
+
+        $stage   = isset( $trace['stage'] ) ? sanitize_text_field( (string) $trace['stage'] ) : '';
+        $message = isset( $trace['message'] ) ? sanitize_text_field( (string) $trace['message'] ) : '';
+        $url     = isset( $trace['submitted_url'] ) ? esc_url_raw( (string) $trace['submitted_url'] ) : '';
+
+        echo '<p class="description gi-source-search-trace">';
+        echo '<strong>' . esc_html__( 'Last Source Search:', 'great-imports' ) . '</strong> ';
+        echo esc_html( $stage );
+        if ( '' !== $url ) {
+            echo ' - ' . esc_html( $url );
+        }
+        if ( '' !== $message ) {
+            echo ' - ' . esc_html( $message );
+        }
+        echo '</p>';
     }
 
     private function render_notice() {

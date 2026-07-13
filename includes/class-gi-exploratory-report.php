@@ -97,6 +97,7 @@ final class GI_Exploratory_Report {
                 'eventbrite_private_token_configured' => $this->api_client->has_private_token(),
                 'eventbrite_private_token_value'      => $this->api_client->has_private_token() ? '[configured-not-exported]' : '[not-configured]',
             ),
+            'last_source_search_attempt'  => $this->last_source_search_attempt(),
             'summary'                     => $this->summarize_all( $candidates, $evidence, $import_previews, $source_page_displays, $coverage_audits, $em_location_traces, $em_duplicate_locations ),
             'source_coverage_audits'      => $coverage_audits,
             'source_page_display_reports' => $source_page_displays,
@@ -120,6 +121,20 @@ final class GI_Exploratory_Report {
             'em_events_class'    => class_exists( 'EM_Events' ),
             'em_locations_class' => class_exists( 'EM_Locations' ),
         );
+    }
+
+    /**
+     * Include the most recent Source Search attempt even when no candidate/evidence was created.
+     *
+     * @return array<string,mixed>
+     */
+    private function last_source_search_attempt() {
+        $trace = get_option( 'great_imports_last_source_search', array() );
+        if ( ! is_array( $trace ) ) {
+            return array();
+        }
+
+        return $this->sanitize_report_value( 'last_source_search_attempt', $trace );
     }
 
     /**
