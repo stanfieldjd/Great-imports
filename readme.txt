@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.49
+Stable tag: 0.2.50
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,10 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or import images.
 
 == Changelog ==
+
+= 0.2.50 =
+* Stops generating a public `Good to know` section from derived duration/in-person labels.
+* Keeps Events Manager responsible for date/time and location display while retaining source-page Good-to-know evidence in reports.
 
 = 0.2.49 =
 * Adds an Events Manager duplicate-location audit to exploratory reports.

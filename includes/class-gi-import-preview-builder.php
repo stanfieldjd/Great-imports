@@ -98,6 +98,7 @@ final class GI_Import_Preview_Builder {
                 __( 'raw latitude/longitude values', 'great-imports' ),
                 __( 'manual Events Manager location ID assignment unless reviewer selected an existing EM location for later import', 'great-imports' ),
                 __( 'duplicated venue/address blocks in the event description; Events Manager renders the canonical location separately', 'great-imports' ),
+                __( 'generated Good to know duration/in-person labels; Events Manager renders date/time and location separately', 'great-imports' ),
                 __( 'raw scripts', 'great-imports' ),
                 __( 'raw cookies/headers', 'great-imports' ),
                 __( 'Eventbrite source attribution except ticket purchase URL', 'great-imports' ),
@@ -113,24 +114,6 @@ final class GI_Import_Preview_Builder {
         if ( '' !== $overview ) {
             $html .= '<h2>' . esc_html__( 'Overview', 'great-imports' ) . '</h2>';
             $html .= wp_kses_post( $overview );
-        }
-
-        $good_to_know = array();
-        $duration     = $this->duration_label( $start, $end );
-        if ( '' !== $duration ) {
-            $good_to_know[] = sprintf( __( 'Duration: %s', 'great-imports' ), $duration );
-        }
-
-        if ( '' !== $this->candidate_value( $post_id, 'location_name' ) ) {
-            $good_to_know[] = __( 'In person', 'great-imports' );
-        }
-
-        if ( ! empty( $good_to_know ) ) {
-            $html .= '<h2>' . esc_html__( 'Good to know', 'great-imports' ) . '</h2><ul>';
-            foreach ( $good_to_know as $item ) {
-                $html .= '<li>' . esc_html( $item ) . '</li>';
-            }
-            $html .= '</ul>';
         }
 
         $html .= $this->ticket_section_html( $post_id, $ticket_classes );
@@ -595,31 +578,6 @@ final class GI_Import_Preview_Builder {
             'label'     => $value->format( 'l, F j, Y g:i A' ),
             'timestamp' => $value->getTimestamp(),
         );
-    }
-
-    private function duration_label( array $start, array $end ) {
-        if ( empty( $start['timestamp'] ) || empty( $end['timestamp'] ) ) {
-            return '';
-        }
-
-        $seconds = max( 0, (int) $end['timestamp'] - (int) $start['timestamp'] );
-        if ( ! $seconds ) {
-            return '';
-        }
-
-        $hours   = floor( $seconds / HOUR_IN_SECONDS );
-        $minutes = floor( ( $seconds % HOUR_IN_SECONDS ) / MINUTE_IN_SECONDS );
-        $parts   = array();
-
-        if ( $hours ) {
-            $parts[] = sprintf( _n( '%d hour', '%d hours', $hours, 'great-imports' ), $hours );
-        }
-
-        if ( $minutes ) {
-            $parts[] = sprintf( _n( '%d minute', '%d minutes', $minutes, 'great-imports' ), $minutes );
-        }
-
-        return implode( ' ', $parts );
     }
 
     private function overall_window_label( array $start, array $end ) {
