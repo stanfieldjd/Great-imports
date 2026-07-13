@@ -3,11 +3,11 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.53
+Stable tag: 0.2.54
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Full evidence-first Eventbrite importer with candidate review editing, manual cleanup, source-page display reports, coverage audits, import previews, and review reports.
+Full evidence-first Eventbrite importer with candidate review editing, manual data removal, source-page display reports, coverage audits, import previews, and review reports.
 
 == Description ==
 
@@ -27,18 +27,17 @@ This version does not schedule recurring imports, directly publish Events Manage
 
 == Changelog ==
 
+= 0.2.54 =
+* Removes obsolete imported-content repair wording from the package documentation.
+* Keeps the admin utilities limited to Eventbrite API settings, exploratory reports, and Great Imports-owned manual data removal.
+
 = 0.2.53 =
 * Removes the automatic Events Manager single-event format mutation added in 0.2.52.
 * Keeps `#_OPENSTREETMAP` as trace evidence only so reports identify whether it comes from saved content, Events Manager format settings, or rendered output.
 
 = 0.2.52 =
 * Restores sanitized inline event description images instead of stripping all `<img>` tags.
-* Removes the mistaken Imported Content Cleanup admin utility and backend action.
 * Repairs Events Manager single-event formats that contain unsupported `#_OPENSTREETMAP` by replacing it with `#_LOCATIONMAP`.
-
-= 0.2.51 =
-* Adds an Imported Content Cleanup admin action that rebuilds body/notes content for already-linked Events Manager events from the current cleaned candidate preview.
-* Limits cleanup scope to event body/notes content and records a cleanup trace; locations, coordinates, source evidence, duplicate-location records, and ticketing data outside the body are not changed.
 
 = 0.2.50 =
 * Stops generating a public `Good to know` section from derived duration/in-person labels.
