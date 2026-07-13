@@ -84,6 +84,9 @@ final class GI_EM_Importer {
         $selected_id = isset( $payload['em_location_id'] ) ? absint( $payload['em_location_id'] ) : 0;
 
         if ( $selected_id ) {
+            $match_source = isset( $payload['location_match_source'] ) ? sanitize_key( (string) $payload['location_match_source'] ) : '';
+            $trace_source = 'reviewer_selected' === $match_source ? 'reviewer_selected_em_location' : ( 'automatic_matching_location' === $match_source ? 'automatic_matching_location' : 'em_location_id_payload' );
+            $strategy     = 'automatic_matching_location' === $match_source ? 'matched_existing' : 'selected_existing';
             $before = $this->location_snapshot( $selected_id );
             if ( empty( $before['found'] ) ) {
                 return $this->failure( __( 'Selected Events Manager location no longer exists.', 'great-imports' ) );
@@ -101,8 +104,10 @@ final class GI_EM_Importer {
                 'before_snapshot' => $before,
                 'after_snapshot'  => $this->location_snapshot( $sync['location_id'] ),
                 'trace'           => array(
-                    'strategy'     => 'selected_existing',
-                    'source'       => 'reviewer_selected_em_location',
+                    'strategy'     => $strategy,
+                    'source'       => $trace_source,
+                    'match_reason' => isset( $payload['location_match_reason'] ) ? sanitize_text_field( (string) $payload['location_match_reason'] ) : '',
+                    'matched_location_had_complete_coordinates' => ! empty( $payload['location_match_has_complete_coordinates'] ),
                     'storage_sync' => $sync['trace'],
                 ),
             );
@@ -459,12 +464,16 @@ final class GI_EM_Importer {
             'before'         => array(
                 'candidate_em_event_id'    => absint( get_post_meta( $candidate_id, '_gi_em_event_id', true ) ),
                 'candidate_em_location_id' => absint( get_post_meta( $candidate_id, '_gi_em_location_id', true ) ),
-                'review_selected_em_location_id' => isset( $location_payload['em_location_id'] ) ? absint( $location_payload['em_location_id'] ) : 0,
+                'review_selected_em_location_id' => ! empty( $location_payload['location_match_source'] ) && 'reviewer_selected' === $location_payload['location_match_source'] && isset( $location_payload['em_location_id'] ) ? absint( $location_payload['em_location_id'] ) : 0,
             ),
             'payload'        => array(
                 'ready_for_save' => ! empty( $payload['ready_for_save'] ),
                 'validation'     => isset( $payload['validation'] ) && is_array( $payload['validation'] ) ? $payload['validation'] : array(),
                 'location_strategy' => isset( $location_payload['strategy'] ) ? sanitize_key( $location_payload['strategy'] ) : '',
+                'em_location_id' => isset( $location_payload['em_location_id'] ) ? absint( $location_payload['em_location_id'] ) : 0,
+                'location_match_source' => isset( $location_payload['location_match_source'] ) ? sanitize_key( (string) $location_payload['location_match_source'] ) : '',
+                'location_match_reason' => isset( $location_payload['location_match_reason'] ) ? sanitize_text_field( (string) $location_payload['location_match_reason'] ) : '',
+                'location_match_has_complete_coordinates' => ! empty( $location_payload['location_match_has_complete_coordinates'] ),
                 'address_payload' => array(
                     'location_name'     => isset( $location_payload['location_name'] ) ? sanitize_text_field( (string) $location_payload['location_name'] ) : '',
                     'location_address'  => isset( $location_payload['location_address'] ) ? sanitize_text_field( (string) $location_payload['location_address'] ) : '',
