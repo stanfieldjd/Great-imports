@@ -137,18 +137,24 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     }
 
     protected function column_matching_location( $item ) {
+        $selected_id     = isset( $item['em_location_id'] ) ? absint( $item['em_location_id'] ) : 0;
+        $selection_label = isset( $item['em_location_id_source'] ) ? sanitize_key( (string) $item['em_location_id_source'] ) : '';
+        $locations       = $this->locations_for_dropdown( $selected_id );
         $output = '<form class="gi-location-match-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
         $output .= $this->form_context( $item['id'], 'location' );
         $output .= '<label class="screen-reader-text" for="gi-em-location-' . absint( $item['id'] ) . '">' . esc_html__( 'Matching Events Manager location', 'great-imports' ) . '</label>';
         $output .= '<select id="gi-em-location-' . absint( $item['id'] ) . '" name="em_location_id">';
         $output .= '<option value="0">' . esc_html__( 'No matching location selected', 'great-imports' ) . '</option>';
-        foreach ( $this->em_locations as $location ) {
+        foreach ( $locations as $location ) {
             $label = $location['name'];
             $address = $this->format_address( $location );
             if ( '' !== $address ) {
                 $label .= ' — ' . $address;
             }
-            $output .= '<option value="' . absint( $location['id'] ) . '"' . selected( $item['em_location_id'], absint( $location['id'] ), false ) . '>' . esc_html( $label ) . '</option>';
+            if ( $selected_id === absint( $location['id'] ) && in_array( $selection_label, array( 'automatic_matching_location', 'imported_em_location' ), true ) ) {
+                $label .= ' (' . __( 'auto match', 'great-imports' ) . ')';
+            }
+            $output .= '<option value="' . absint( $location['id'] ) . '"' . selected( $selected_id, absint( $location['id'] ), false ) . '>' . esc_html( $label ) . '</option>';
         }
         $output .= '</select>';
         $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Save', 'great-imports' ) . '</button>';
@@ -197,6 +203,7 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         $preview  = $this->preview_builder->build_for_candidate( $candidate );
         $location = GI_Candidate_Review::normalized_location_fields( $id );
         $date     = isset( $preview['public_event_fields']['start']['label'] ) ? (string) $preview['public_event_fields']['start']['label'] : GI_Candidate_Review::value( $id, 'start_date' );
+        $matching_location = $this->matching_location( $id );
 
         return array(
             'id'         => $id,
@@ -213,8 +220,9 @@ final class GI_Candidate_List_Table extends WP_List_Table {
             'location_postal_code' => $location['postcode'],
             'location_country'     => $location['country'],
             'venue_address'      => $this->candidate_address( $id ),
-            'matching_location'  => $this->matching_location( $id ),
-            'em_location_id'     => $this->selected_location_id( $id ),
+            'matching_location'  => $matching_location,
+            'em_location_id'     => $this->selected_location_id( $id, $matching_location ),
+            'em_location_id_source' => $this->selected_location_id_source( $id, $matching_location ),
             'source'            => GI_Candidate_Review::source_value( $id, 'source_type' ),
             'source_url' => (string) get_post_meta( $id, '_gi_source_url', true ),
             'em_event_id' => absint( get_post_meta( $id, '_gi_em_event_id', true ) ),
@@ -257,14 +265,54 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         return '<fieldset><legend>' . esc_html( $label ) . '</legend><input type="date" name="' . esc_attr( $field . '_date' ) . '" value="' . esc_attr( $date ) . '"> <input type="time" name="' . esc_attr( $field . '_time' ) . '" value="' . esc_attr( $time ) . '"></fieldset>';
     }
 
-    private function selected_location_id( $candidate_id ) {
+    private function selected_location_id( $candidate_id, array $matching_location = array() ) {
         $selected = absint( GI_Candidate_Review::review_value( $candidate_id, 'em_location_id' ) );
         if ( $selected ) {
             return $selected;
         }
 
-        $match = $this->matching_location( $candidate_id );
-        return ! empty( $match['id'] ) ? absint( $match['id'] ) : 0;
+        $imported = absint( get_post_meta( absint( $candidate_id ), '_gi_em_location_id', true ) );
+        if ( $imported ) {
+            return $imported;
+        }
+
+        return ! empty( $matching_location['id'] ) ? absint( $matching_location['id'] ) : 0;
+    }
+
+    private function selected_location_id_source( $candidate_id, array $matching_location = array() ) {
+        if ( absint( GI_Candidate_Review::review_value( $candidate_id, 'em_location_id' ) ) ) {
+            return 'reviewer_selected';
+        }
+
+        if ( absint( get_post_meta( absint( $candidate_id ), '_gi_em_location_id', true ) ) ) {
+            return 'imported_em_location';
+        }
+
+        if ( ! empty( $matching_location['id'] ) ) {
+            return 'automatic_matching_location';
+        }
+
+        return '';
+    }
+
+    private function locations_for_dropdown( $selected_id ) {
+        $locations = $this->em_locations;
+        if ( ! $selected_id ) {
+            return $locations;
+        }
+
+        foreach ( $locations as $location ) {
+            if ( $selected_id === absint( $location['id'] ) ) {
+                return $locations;
+            }
+        }
+
+        $selected = $this->selected_location_by_id( $selected_id );
+        if ( ! empty( $selected ) ) {
+            array_unshift( $locations, $selected );
+        }
+
+        return $locations;
     }
 
     private function candidate_address( $candidate_id ) {
