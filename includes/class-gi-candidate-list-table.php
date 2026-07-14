@@ -185,14 +185,6 @@ final class GI_Candidate_List_Table extends WP_List_Table {
         $output .= '<button type="submit" class="button button-primary button-small">' . esc_html( $button_label ) . '</button>';
         $output .= '</form>';
 
-        $recurring_button_label = ! empty( $item['em_recurring_event_id'] ) ? __( 'Update Recurring', 'great-imports' ) : __( 'Save Recurring', 'great-imports' );
-        $output .= '<form class="gi-import-form gi-recurring-import-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        $output .= '<input type="hidden" name="action" value="gi_import_recurring_candidate_to_em">';
-        $output .= '<input type="hidden" name="candidate_id" value="' . absint( $item['id'] ) . '">';
-        $output .= wp_nonce_field( 'gi_import_recurring_candidate_to_em_' . absint( $item['id'] ), '_wpnonce', true, false );
-        $output .= '<button type="submit" class="button button-small">' . esc_html( $recurring_button_label ) . '</button>';
-        $output .= '</form>';
-
         return $output;
     }
 
