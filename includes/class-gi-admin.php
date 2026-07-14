@@ -190,26 +190,28 @@ final class GI_Admin {
         $now   = current_time( 'mysql' );
         $existing = isset( $saved[ $key ] ) && is_array( $saved[ $key ] ) ? $saved[ $key ] : array();
         $saved[ $key ] = array(
-            'id'                   => $key,
-            'name'                 => $this->recurring_source_name_from_validation( $validated ),
-            'submitted_url'        => esc_url_raw( (string) $url ),
-            'source_url'           => esc_url_raw( (string) $validated['url'] ),
-            'source_kind'          => isset( $validated['source_kind'] ) ? sanitize_key( (string) $validated['source_kind'] ) : '',
-            'eventbrite_event_id'  => isset( $validated['event_id'] ) ? sanitize_text_field( (string) $validated['event_id'] ) : '',
+            'id'                       => $key,
+            'name'                     => $this->recurring_source_name_from_validation( $validated ),
+            'submitted_url'            => esc_url_raw( (string) $url ),
+            'source_url'               => esc_url_raw( (string) $validated['url'] ),
+            'source_kind'              => isset( $validated['source_kind'] ) ? sanitize_key( (string) $validated['source_kind'] ) : '',
+            'eventbrite_event_id'      => isset( $validated['event_id'] ) ? sanitize_text_field( (string) $validated['event_id'] ) : '',
             'eventbrite_organizer_id' => isset( $validated['organizer_id'] ) ? sanitize_text_field( (string) $validated['organizer_id'] ) : '',
-            'enabled'              => isset( $existing['enabled'] ) ? (bool) $existing['enabled'] : true,
-            'auto_enabled'         => isset( $existing['auto_enabled'] ) ? (bool) $existing['auto_enabled'] : false,
-            'frequency_hours'      => isset( $existing['frequency_hours'] ) ? $this->normalize_recurring_frequency( $existing['frequency_hours'] ) : 24,
-            'cadence'              => isset( $existing['cadence'] ) ? sanitize_key( (string) $existing['cadence'] ) : 'manual',
-            'search_ahead_days'    => isset( $existing['search_ahead_days'] ) ? absint( $existing['search_ahead_days'] ) : 30,
-            'schedule_label'       => isset( $existing['schedule_label'] ) ? sanitize_text_field( (string) $existing['schedule_label'] ) : __( 'Manual run', 'great-imports' ),
-            'last_run_at'          => isset( $existing['last_run_at'] ) ? sanitize_text_field( (string) $existing['last_run_at'] ) : '',
-            'last_run_status'      => isset( $existing['last_run_status'] ) ? sanitize_text_field( (string) $existing['last_run_status'] ) : __( 'Never run', 'great-imports' ),
-            'last_run_message'     => isset( $existing['last_run_message'] ) ? sanitize_text_field( (string) $existing['last_run_message'] ) : '',
-            'next_run_at'          => isset( $existing['next_run_at'] ) ? sanitize_text_field( (string) $existing['next_run_at'] ) : '',
-            'created_at'           => isset( $existing['created_at'] ) ? sanitize_text_field( (string) $existing['created_at'] ) : $now,
-            'updated_at'           => $now,
-            'saved_by'             => get_current_user_id(),
+            'enabled'                  => isset( $existing['enabled'] ) ? (bool) $existing['enabled'] : true,
+            'auto_enabled'             => isset( $existing['auto_enabled'] ) ? (bool) $existing['auto_enabled'] : false,
+            'frequency_hours'          => isset( $existing['frequency_hours'] ) ? $this->normalize_recurring_frequency( $existing['frequency_hours'] ) : 24,
+            'cadence'                  => isset( $existing['cadence'] ) ? sanitize_key( (string) $existing['cadence'] ) : 'manual',
+            'search_ahead_days'        => isset( $existing['search_ahead_days'] ) ? absint( $existing['search_ahead_days'] ) : 30,
+            'force_location_enabled'  => isset( $existing['force_location_enabled'] ) ? (bool) $existing['force_location_enabled'] : false,
+            'forced_em_location_id'    => isset( $existing['forced_em_location_id'] ) ? absint( $existing['forced_em_location_id'] ) : 0,
+            'schedule_label'           => isset( $existing['schedule_label'] ) ? sanitize_text_field( (string) $existing['schedule_label'] ) : __( 'Manual run', 'great-imports' ),
+            'last_run_at'              => isset( $existing['last_run_at'] ) ? sanitize_text_field( (string) $existing['last_run_at'] ) : '',
+            'last_run_status'          => isset( $existing['last_run_status'] ) ? sanitize_text_field( (string) $existing['last_run_status'] ) : __( 'Never run', 'great-imports' ),
+            'last_run_message'         => isset( $existing['last_run_message'] ) ? sanitize_text_field( (string) $existing['last_run_message'] ) : '',
+            'next_run_at'              => isset( $existing['next_run_at'] ) ? sanitize_text_field( (string) $existing['next_run_at'] ) : '',
+            'created_at'               => isset( $existing['created_at'] ) ? sanitize_text_field( (string) $existing['created_at'] ) : $now,
+            'updated_at'               => $now,
+            'saved_by'                 => get_current_user_id(),
         );
 
         update_option( 'great_imports_recurring_sources', $saved, false );
@@ -248,16 +250,26 @@ final class GI_Admin {
         $frequency_hours   = isset( $_POST['frequency_hours'] ) ? $this->normalize_recurring_frequency( wp_unslash( $_POST['frequency_hours'] ) ) : 24;
         $search_ahead_days = isset( $_POST['search_ahead_days'] ) ? absint( wp_unslash( $_POST['search_ahead_days'] ) ) : 30;
         $search_ahead_days = max( 1, min( 365, $search_ahead_days ) );
+        $force_location_enabled = ! empty( $_POST['force_location_enabled'] );
+        $forced_em_location_id  = $force_location_enabled && isset( $_POST['forced_em_location_id'] ) ? absint( wp_unslash( $_POST['forced_em_location_id'] ) ) : 0;
+        if ( $force_location_enabled && ! $forced_em_location_id ) {
+            $this->redirect_with_notice( 'error', __( 'Select an Events Manager location before enabling forced location.', 'great-imports' ), 0 );
+        }
+        if ( $forced_em_location_id && ! $this->recurring_source_location_exists( $forced_em_location_id ) ) {
+            $this->redirect_with_notice( 'error', __( 'Selected forced location could not be found.', 'great-imports' ), 0 );
+        }
         $now               = current_time( 'mysql' );
 
-        $saved[ $source_id ]['auto_enabled']      = $auto_enabled;
-        $saved[ $source_id ]['enabled']           = true;
-        $saved[ $source_id ]['frequency_hours']   = $frequency_hours;
-        $saved[ $source_id ]['cadence']           = $auto_enabled ? 'auto' : 'manual';
-        $saved[ $source_id ]['search_ahead_days'] = $search_ahead_days;
-        $saved[ $source_id ]['schedule_label']    = $auto_enabled ? $this->recurring_source_frequency_label( $frequency_hours ) : __( 'Manual run', 'great-imports' );
-        $saved[ $source_id ]['next_run_at']       = $auto_enabled ? $this->recurring_source_next_run_time( $frequency_hours ) : '';
-        $saved[ $source_id ]['updated_at']        = $now;
+        $saved[ $source_id ]['auto_enabled']             = $auto_enabled;
+        $saved[ $source_id ]['enabled']                  = true;
+        $saved[ $source_id ]['frequency_hours']          = $frequency_hours;
+        $saved[ $source_id ]['cadence']                  = $auto_enabled ? 'auto' : 'manual';
+        $saved[ $source_id ]['search_ahead_days']        = $search_ahead_days;
+        $saved[ $source_id ]['force_location_enabled']  = $force_location_enabled;
+        $saved[ $source_id ]['forced_em_location_id']    = $forced_em_location_id;
+        $saved[ $source_id ]['schedule_label']           = $auto_enabled ? $this->recurring_source_frequency_label( $frequency_hours ) : __( 'Manual run', 'great-imports' );
+        $saved[ $source_id ]['next_run_at']              = $auto_enabled ? $this->recurring_source_next_run_time( $frequency_hours ) : '';
+        $saved[ $source_id ]['updated_at']               = $now;
 
         update_option( 'great_imports_recurring_sources', $saved, false );
 
@@ -700,6 +712,8 @@ final class GI_Admin {
         $days = max( 1, min( 365, $days ) );
         $frequency = $this->normalize_recurring_frequency( isset( $source['frequency_hours'] ) ? $source['frequency_hours'] : 24 );
         $auto_checked = ! empty( $source['auto_enabled'] ) ? ' checked' : '';
+        $force_location_checked = ! empty( $source['force_location_enabled'] ) ? ' checked' : '';
+        $forced_location_id = ! empty( $source['forced_em_location_id'] ) ? absint( $source['forced_em_location_id'] ) : 0;
 
         $output  = '<div class="gi-recurring-actions">';
         $output .= '<form class="gi-recurring-settings-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -716,6 +730,8 @@ final class GI_Admin {
         $output .= '<label><span class="gi-recurring-field-label">' . esc_html__( 'Ahead', 'great-imports' ) . '</span> ';
         $output .= '<input type="number" class="small-text gi-search-ahead-input" name="search_ahead_days" min="1" max="365" value="' . esc_attr( $days ) . '"> ';
         $output .= esc_html__( 'days', 'great-imports' ) . '</label>';
+        $output .= '<label class="gi-recurring-inline-check"><input type="checkbox" name="force_location_enabled" value="1"' . $force_location_checked . '> ' . esc_html__( 'Force location', 'great-imports' ) . '</label>';
+        $output .= $this->recurring_source_location_select( $forced_location_id );
         $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Save', 'great-imports' ) . '</button>';
         $output .= '</form>';
 
@@ -736,6 +752,59 @@ final class GI_Admin {
         $output .= '</div>';
 
         return $output;
+    }
+
+    private function recurring_source_location_select( $selected_id ) {
+        $locations = GI_Candidate_Review::all_locations();
+        $selected_id = absint( $selected_id );
+
+        $output  = '<label class="gi-recurring-location-field"><span class="screen-reader-text">' . esc_html__( 'Forced Events Manager location', 'great-imports' ) . '</span>';
+        $output .= '<select name="forced_em_location_id">';
+        $output .= '<option value="0">' . esc_html__( 'Select forced location', 'great-imports' ) . '</option>';
+        foreach ( $locations as $location ) {
+            $location_id = isset( $location['id'] ) ? absint( $location['id'] ) : 0;
+            if ( ! $location_id ) {
+                continue;
+            }
+
+            $label = isset( $location['name'] ) ? sanitize_text_field( (string) $location['name'] ) : '';
+            $address = $this->format_recurring_source_location_address( $location );
+            if ( '' !== $address ) {
+                $label .= ' - ' . $address;
+            }
+            $output .= '<option value="' . absint( $location_id ) . '"' . selected( $selected_id, $location_id, false ) . '>' . esc_html( $label ) . '</option>';
+        }
+        $output .= '</select></label>';
+
+        return $output;
+    }
+
+    private function format_recurring_source_location_address( array $location ) {
+        $parts = array_filter(
+            array(
+                isset( $location['address'] ) ? trim( (string) $location['address'] ) : '',
+                isset( $location['city'] ) ? trim( (string) $location['city'] ) : '',
+                isset( $location['state'] ) ? trim( (string) $location['state'] ) : '',
+                isset( $location['postcode'] ) ? trim( (string) $location['postcode'] ) : '',
+            )
+        );
+
+        return sanitize_text_field( implode( ', ', $parts ) );
+    }
+
+    private function recurring_source_location_exists( $location_id ) {
+        $location_id = absint( $location_id );
+        if ( ! $location_id ) {
+            return false;
+        }
+
+        foreach ( GI_Candidate_Review::all_locations() as $location ) {
+            if ( isset( $location['id'] ) && $location_id === absint( $location['id'] ) ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function run_recurring_source( $source_id, array $source, $search_ahead_days, $run_mode ) {
@@ -781,6 +850,8 @@ final class GI_Admin {
             );
         }
 
+        $forced_location_ids = $this->apply_forced_recurring_location( $source, $result );
+
         $message = isset( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : '';
         $saved   = $this->saved_recurring_sources();
         $saved[ $source_id ]['last_run_status']  = ! empty( $result['success'] ) ? __( 'Completed', 'great-imports' ) : __( 'Failed', 'great-imports' );
@@ -788,29 +859,71 @@ final class GI_Admin {
         $saved[ $source_id ]['last_run_at']      = current_time( 'mysql' );
         $saved[ $source_id ]['last_run_mode']    = sanitize_key( (string) $run_mode );
         $saved[ $source_id ]['last_post_id']     = isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0;
+        $saved[ $source_id ]['last_forced_location_candidate_ids'] = $forced_location_ids;
         $saved[ $source_id ]['next_run_at']      = ! empty( $saved[ $source_id ]['auto_enabled'] ) ? $this->recurring_source_next_run_time( $frequency_hours ) : '';
         $saved[ $source_id ]['updated_at']       = current_time( 'mysql' );
         update_option( 'great_imports_recurring_sources', $saved, false );
 
         $this->save_source_search_trace(
             array(
-                'stage'             => 'ran_saved_recurring_source',
-                'submitted_url'     => $url,
-                'source_url'        => $url,
-                'finished_at_gmt'   => gmdate( 'Y-m-d H:i:s' ),
-                'plugin_version'    => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
-                'admin_action'      => 'gi_run_recurring_source',
-                'run_mode'          => sanitize_key( (string) $run_mode ),
-                'success'           => ! empty( $result['success'] ),
-                'message'           => $message,
-                'saved_source_id'   => $source_id,
-                'search_ahead_days' => $search_ahead_days,
-                'post_id'           => isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0,
-                'event_summary'     => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
+                'stage'                         => 'ran_saved_recurring_source',
+                'submitted_url'                 => $url,
+                'source_url'                    => $url,
+                'finished_at_gmt'               => gmdate( 'Y-m-d H:i:s' ),
+                'plugin_version'                => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                'admin_action'                  => 'gi_run_recurring_source',
+                'run_mode'                      => sanitize_key( (string) $run_mode ),
+                'success'                       => ! empty( $result['success'] ),
+                'message'                       => $message,
+                'saved_source_id'               => $source_id,
+                'search_ahead_days'             => $search_ahead_days,
+                'force_location_enabled'         => ! empty( $source['force_location_enabled'] ),
+                'forced_em_location_id'         => ! empty( $source['forced_em_location_id'] ) ? absint( $source['forced_em_location_id'] ) : 0,
+                'forced_location_candidate_ids' => $forced_location_ids,
+                'post_id'                       => isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0,
+                'event_summary'                 => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
             )
         );
 
         return $result;
+    }
+
+    private function apply_forced_recurring_location( array $source, array $result ) {
+        if ( empty( $source['force_location_enabled'] ) || empty( $source['forced_em_location_id'] ) || empty( $result['success'] ) ) {
+            return array();
+        }
+
+        $location_id = absint( $source['forced_em_location_id'] );
+        if ( ! $location_id ) {
+            return array();
+        }
+
+        $candidate_ids = $this->candidate_ids_from_recurring_result( $result );
+        foreach ( $candidate_ids as $candidate_id ) {
+            update_post_meta( $candidate_id, '_gi_review_em_location_id', $location_id );
+            update_post_meta( $candidate_id, '_gi_review_location_decision', 'use_existing_em' );
+            update_post_meta( $candidate_id, '_gi_reviewed_at', current_time( 'mysql' ) );
+            update_post_meta( $candidate_id, '_gi_reviewed_by', get_current_user_id() );
+        }
+
+        return $candidate_ids;
+    }
+
+    private function candidate_ids_from_recurring_result( array $result ) {
+        $ids = array();
+        if ( ! empty( $result['post_id'] ) ) {
+            $ids[] = absint( $result['post_id'] );
+        }
+
+        $event = isset( $result['event'] ) && is_array( $result['event'] ) ? $result['event'] : array();
+        $rows  = isset( $event['results'] ) && is_array( $event['results'] ) ? $event['results'] : array();
+        foreach ( $rows as $row ) {
+            if ( is_array( $row ) && ! empty( $row['post_id'] ) ) {
+                $ids[] = absint( $row['post_id'] );
+            }
+        }
+
+        return array_values( array_unique( array_filter( $ids ) ) );
     }
 
     private function normalize_recurring_frequency( $hours ) {

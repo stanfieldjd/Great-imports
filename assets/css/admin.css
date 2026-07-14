@@ -115,6 +115,10 @@
     white-space: nowrap;
 }
 
+.gi-recurring-settings-form {
+    flex-wrap: wrap;
+}
+
 .gi-recurring-inline-check {
     display: inline-flex;
     gap: 4px;
@@ -126,6 +130,10 @@
 
 .gi-search-ahead-input {
     width: 64px;
+}
+
+.gi-recurring-location-field select {
+    max-width: 340px;
 }
 
 .gi-delete-recurring-source-button {
