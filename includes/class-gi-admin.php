@@ -349,11 +349,10 @@ final class GI_Admin {
         echo '</div>';
         echo '<form class="gi-collect-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
         wp_nonce_field( 'gi_eventbrite_import_once' );
-        echo '<input type="hidden" name="action" value="gi_eventbrite_import_once">';
         echo '<label class="screen-reader-text" for="gi_eventbrite_url">' . esc_html__( 'Eventbrite URL', 'great-imports' ) . '</label>';
         echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789 or https://www.eventbrite.com/o/123456789" required> ';
-        submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
-        echo ' <button type="submit" class="button" name="action" value="gi_eventbrite_save_recurring_from_source" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '">' . esc_html__( 'Save Recurring', 'great-imports' ) . '</button>';
+        echo '<button type="submit" class="button button-primary" name="action" value="gi_eventbrite_import_once">' . esc_html__( 'Search Source', 'great-imports' ) . '</button>';
+        echo ' <button type="submit" class="button" name="action" value="gi_eventbrite_save_recurring_from_source">' . esc_html__( 'Save Recurring', 'great-imports' ) . '</button>';
         echo '</form>';
         echo '</section>';
     }
