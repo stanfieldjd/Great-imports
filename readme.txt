@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.64
+Stable tag: 0.2.65
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version does not schedule automatic recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.65 =
+* Moves Save Recurring to the Source panel after Search Source.
+* Saves recurring events from the submitted Source Search URL by collecting/updating the candidate first, then running the recurring Events Manager save internally.
+* Removes the candidate-row Save Recurring button so recurring save access is URL-driven instead of candidate-row driven.
 
 = 0.2.64 =
 * Shows the Save Recurring button on every candidate row so recurring save access is not hidden by automatic detection.
