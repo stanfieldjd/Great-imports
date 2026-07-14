@@ -115,6 +115,18 @@ final class GI_Candidate_Store {
                 'posts_per_page' => absint( $limit ),
                 'orderby'        => 'modified',
                 'order'          => 'DESC',
+                'meta_query'     => array(
+                    'relation' => 'OR',
+                    array(
+                        'key'     => '_gi_candidate_status',
+                        'compare' => 'NOT EXISTS',
+                    ),
+                    array(
+                        'key'     => '_gi_candidate_status',
+                        'value'   => array( 'imported', 'recurring_imported' ),
+                        'compare' => 'NOT IN',
+                    ),
+                ),
             )
         );
     }
