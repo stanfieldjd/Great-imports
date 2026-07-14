@@ -17,6 +17,7 @@ define( 'GREAT_IMPORTS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'GREAT_IMPORTS_URL', plugin_dir_url( __FILE__ ) );
 
 require_once GREAT_IMPORTS_DIR . 'includes/class-gi-plugin.php';
+require_once GREAT_IMPORTS_DIR . 'includes/class-gi-multi-day-admin.php';
 
 GI_Plugin::instance()->boot();
 
