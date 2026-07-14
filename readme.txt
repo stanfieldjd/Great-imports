@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.73
+Stable tag: 0.2.74
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,11 @@ Manual Data Removal removes only Great Imports-owned data: private token/options
 This version saves recurring source records for later recurring use, but does not schedule automatic recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.74 =
+* Removes successfully imported and recurring-imported candidates from the Recent Event Candidates queue.
+* Preserves candidate records and import trace metadata for reports and duplicate matching.
+* Keeps failed and unimported candidates in the queue.
 
 = 0.2.73 =
 * Adds a forced Events Manager location option to saved recurring sources.
