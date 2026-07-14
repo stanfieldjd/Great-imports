@@ -95,6 +95,22 @@
     word-break: break-word;
 }
 
+.gi-recurring-run-form {
+    align-items: center;
+    display: flex;
+    gap: 4px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.gi-search-ahead-input {
+    width: 64px;
+}
+
+.gi-recurring-run-unit {
+    color: #50575e;
+}
+
 .gi-list-panel {
     margin-top: 0;
 }
