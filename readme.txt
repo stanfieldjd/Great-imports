@@ -3,7 +3,7 @@ Contributors: greatimports
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.2.67
+Stable tag: 0.2.68
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,9 +23,14 @@ Great Imports prepares reviewed Events Manager event and location fields for sto
 
 Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
 
-This version does not schedule automatic recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
+This version saves recurring source URLs for later recurring use, but does not schedule automatic recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
 
 == Changelog ==
+
+= 0.2.68 =
+* Changes Source panel Save Recurring into a saved recurring URL action instead of an immediate Source Search/import action.
+* Stores validated Eventbrite source URLs in Great Imports recurring source options and displays saved recurring URLs under the Source panel.
+* Keeps Search Source as the candidate collection action and does not create Events Manager recurring events from the Source panel save button.
 
 = 0.2.67 =
 * Fixes the Source panel buttons so Save Recurring submits the recurring source action instead of falling through to normal Search Source.

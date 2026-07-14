@@ -70,6 +70,30 @@
     max-width: 760px;
 }
 
+.gi-recurring-sources {
+    border-top: 1px solid #dcdcde;
+    margin-top: 12px;
+    padding-top: 10px;
+}
+
+.gi-recurring-sources h3 {
+    font-size: 13px;
+    margin: 0 0 6px;
+}
+
+.gi-recurring-sources ul {
+    margin: 0;
+}
+
+.gi-recurring-sources li {
+    margin: 4px 0;
+}
+
+.gi-recurring-source-meta {
+    color: #646970;
+    font-size: 12px;
+}
+
 .gi-list-panel {
     margin-top: 0;
 }
