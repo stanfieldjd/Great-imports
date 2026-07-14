@@ -33,6 +33,7 @@ final class GI_Admin {
         add_action( 'admin_post_gi_eventbrite_save_recurring_from_source', array( $this, 'handle_eventbrite_save_recurring_from_source' ) );
         add_action( 'admin_post_gi_run_recurring_source', array( $this, 'handle_run_recurring_source' ) );
         add_action( 'admin_post_gi_save_recurring_source_settings', array( $this, 'handle_save_recurring_source_settings' ) );
+        add_action( 'admin_post_gi_delete_recurring_source', array( $this, 'handle_delete_recurring_source' ) );
         add_action( 'great_imports_run_recurring_sources', array( $this, 'run_due_recurring_sources' ) );
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
@@ -261,6 +262,23 @@ final class GI_Admin {
         update_option( 'great_imports_recurring_sources', $saved, false );
 
         $this->redirect_with_notice( 'success', __( 'Saved recurring source settings updated.', 'great-imports' ), 0 );
+    }
+
+    public function handle_delete_recurring_source() {
+        $this->guard( 'delete recurring sources' );
+
+        $source_id = isset( $_POST['source_id'] ) ? sanitize_text_field( wp_unslash( $_POST['source_id'] ) ) : '';
+        check_admin_referer( 'gi_delete_recurring_source_' . $source_id );
+
+        $saved = $this->saved_recurring_sources();
+        if ( '' === $source_id || empty( $saved[ $source_id ] ) || ! is_array( $saved[ $source_id ] ) ) {
+            $this->redirect_with_notice( 'error', __( 'Saved recurring source could not be found.', 'great-imports' ), 0 );
+        }
+
+        unset( $saved[ $source_id ] );
+        update_option( 'great_imports_recurring_sources', $saved, false );
+
+        $this->redirect_with_notice( 'success', __( 'Saved recurring source deleted.', 'great-imports' ), 0 );
     }
 
     public function handle_run_recurring_source() {
@@ -707,6 +725,13 @@ final class GI_Admin {
         $output .= '<input type="hidden" name="search_ahead_days" value="' . esc_attr( $days ) . '">';
         $output .= wp_nonce_field( 'gi_run_recurring_source_' . $source_id, '_wpnonce', true, false );
         $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Run now', 'great-imports' ) . '</button>';
+        $output .= '</form>';
+
+        $output .= '<form class="gi-recurring-delete-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        $output .= '<input type="hidden" name="action" value="gi_delete_recurring_source">';
+        $output .= '<input type="hidden" name="source_id" value="' . esc_attr( $source_id ) . '">';
+        $output .= wp_nonce_field( 'gi_delete_recurring_source_' . $source_id, '_wpnonce', true, false );
+        $output .= '<button type="submit" class="button button-small gi-delete-recurring-source-button" onclick="return confirm(\'' . esc_js( __( 'Delete this saved recurring source?', 'great-imports' ) ) . '\');">' . esc_html__( 'Delete', 'great-imports' ) . '</button>';
         $output .= '</form>';
         $output .= '</div>';
 

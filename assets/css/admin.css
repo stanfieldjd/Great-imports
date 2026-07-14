@@ -109,7 +109,8 @@
 }
 
 .gi-recurring-settings-form,
-.gi-recurring-run-form {
+.gi-recurring-run-form,
+.gi-recurring-delete-form {
     margin: 0;
     white-space: nowrap;
 }
@@ -125,6 +126,11 @@
 
 .gi-search-ahead-input {
     width: 64px;
+}
+
+.gi-delete-recurring-source-button {
+    border-color: #d63638;
+    color: #b32d2e;
 }
 
 .gi-recurring-run-unit {
