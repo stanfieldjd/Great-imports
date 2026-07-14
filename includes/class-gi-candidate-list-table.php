@@ -69,7 +69,7 @@ final class GI_Candidate_List_Table extends WP_List_Table {
     }
 
     public function no_items() {
-        esc_html_e( 'No candidates have been collected yet.', 'great-imports' );
+        esc_html_e( 'No candidates are waiting for import.', 'great-imports' );
     }
 
     protected function get_table_classes() {
