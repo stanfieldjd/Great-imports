@@ -30,6 +30,7 @@ final class GI_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'admin_post_gi_eventbrite_import_once', array( $this, 'handle_eventbrite_import_once' ) );
         add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
+        add_action( 'admin_post_gi_eventbrite_save_recurring_from_source', array( $this, 'handle_eventbrite_save_recurring_from_source' ) );
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
         add_action( 'admin_post_gi_save_candidate_field', array( $this, 'handle_save_candidate_field' ) );
@@ -156,6 +157,89 @@ final class GI_Admin {
         $this->redirect_with_notice( $result['success'] ? 'success' : 'error', $result['message'], absint( $result['post_id'] ) );
     }
 
+    public function handle_eventbrite_save_recurring_from_source() {
+        $this->guard( 'save recurring events from Source Search' );
+        check_admin_referer( 'gi_eventbrite_import_once' );
+
+        $url = isset( $_POST['gi_eventbrite_url'] ) ? wp_unslash( $_POST['gi_eventbrite_url'] ) : '';
+        $this->save_source_search_trace(
+            array(
+                'stage'          => 'received',
+                'submitted_url'  => esc_url_raw( (string) $url ),
+                'started_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                'plugin_version' => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                'admin_action'   => 'gi_eventbrite_save_recurring_from_source',
+                'user_id'        => get_current_user_id(),
+                'message'        => 'Source Search submitted for recurring save and importer is about to run.',
+            )
+        );
+
+        try {
+            $result = $this->importer->import_once( $url );
+        } catch ( Throwable $exception ) {
+            $message = sprintf(
+                __( 'Save Recurring stopped before candidates could be collected: %s', 'great-imports' ),
+                $exception->getMessage()
+            );
+            $this->save_source_search_trace(
+                array(
+                    'stage'           => 'exception',
+                    'submitted_url'   => esc_url_raw( (string) $url ),
+                    'finished_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                    'plugin_version'  => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                    'admin_action'    => 'gi_eventbrite_save_recurring_from_source',
+                    'success'         => false,
+                    'message'         => $message,
+                    'exception_type'  => get_class( $exception ),
+                    'exception_file'  => $exception->getFile(),
+                    'exception_line'  => $exception->getLine(),
+                )
+            );
+            $this->redirect_with_notice( 'error', $message, 0 );
+        }
+
+        $candidate_id = isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0;
+        if ( empty( $result['success'] ) || ! $candidate_id ) {
+            $message = isset( $result['message'] ) ? (string) $result['message'] : __( 'Source Search did not create a candidate for recurring save.', 'great-imports' );
+            $this->save_source_search_trace(
+                array(
+                    'stage'           => 'completed',
+                    'submitted_url'   => esc_url_raw( (string) $url ),
+                    'finished_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                    'plugin_version'  => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                    'admin_action'    => 'gi_eventbrite_save_recurring_from_source',
+                    'success'         => false,
+                    'message'         => sanitize_text_field( $message ),
+                    'post_id'         => $candidate_id,
+                    'updated'         => ! empty( $result['updated'] ),
+                    'event_summary'   => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
+                )
+            );
+            $this->redirect_with_notice( 'error', $message, $candidate_id );
+        }
+
+        $recurring_result = $this->em_importer->import_recurring_candidate( $candidate_id );
+        $message          = isset( $recurring_result['message'] ) ? (string) $recurring_result['message'] : __( 'Recurring save finished without a message.', 'great-imports' );
+        $this->save_source_search_trace(
+            array(
+                'stage'           => 'completed',
+                'submitted_url'   => esc_url_raw( (string) $url ),
+                'finished_at_gmt' => gmdate( 'Y-m-d H:i:s' ),
+                'plugin_version'  => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                'admin_action'    => 'gi_eventbrite_save_recurring_from_source',
+                'success'         => ! empty( $recurring_result['success'] ),
+                'message'         => sanitize_text_field( $message ),
+                'post_id'         => $candidate_id,
+                'updated'         => ! empty( $result['updated'] ),
+                'event_summary'   => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
+                'recurring_event_id' => isset( $recurring_result['event_id'] ) ? absint( $recurring_result['event_id'] ) : 0,
+                'location_id'     => isset( $recurring_result['location_id'] ) ? absint( $recurring_result['location_id'] ) : 0,
+            )
+        );
+
+        $this->redirect_with_notice( ! empty( $recurring_result['success'] ) ? 'success' : 'error', $message, $candidate_id );
+    }
+
     public function handle_save_candidate_field() {
         $this->guard( 'edit Great Imports candidates' );
 
@@ -269,6 +353,7 @@ final class GI_Admin {
         echo '<label class="screen-reader-text" for="gi_eventbrite_url">' . esc_html__( 'Eventbrite URL', 'great-imports' ) . '</label>';
         echo '<input type="url" class="regular-text gi-url-input" id="gi_eventbrite_url" name="gi_eventbrite_url" placeholder="https://www.eventbrite.com/e/example-event-tickets-123456789 or https://www.eventbrite.com/o/123456789" required> ';
         submit_button( __( 'Search Source', 'great-imports' ), 'primary', 'submit', false );
+        echo ' <button type="submit" class="button" name="action" value="gi_eventbrite_save_recurring_from_source" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '">' . esc_html__( 'Save Recurring', 'great-imports' ) . '</button>';
         echo '</form>';
         echo '</section>';
     }
