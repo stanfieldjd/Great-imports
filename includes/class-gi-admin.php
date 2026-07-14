@@ -184,15 +184,22 @@ final class GI_Admin {
         $saved = $this->saved_recurring_sources();
         $key   = md5( (string) $validated['url'] );
         $now   = current_time( 'mysql' );
+        $existing = isset( $saved[ $key ] ) && is_array( $saved[ $key ] ) ? $saved[ $key ] : array();
         $saved[ $key ] = array(
             'id'                   => $key,
+            'name'                 => $this->recurring_source_name_from_validation( $validated ),
             'submitted_url'        => esc_url_raw( (string) $url ),
             'source_url'           => esc_url_raw( (string) $validated['url'] ),
             'source_kind'          => isset( $validated['source_kind'] ) ? sanitize_key( (string) $validated['source_kind'] ) : '',
             'eventbrite_event_id'  => isset( $validated['event_id'] ) ? sanitize_text_field( (string) $validated['event_id'] ) : '',
             'eventbrite_organizer_id' => isset( $validated['organizer_id'] ) ? sanitize_text_field( (string) $validated['organizer_id'] ) : '',
-            'enabled'              => true,
-            'created_at'           => isset( $saved[ $key ]['created_at'] ) ? sanitize_text_field( (string) $saved[ $key ]['created_at'] ) : $now,
+            'enabled'              => isset( $existing['enabled'] ) ? (bool) $existing['enabled'] : true,
+            'cadence'              => isset( $existing['cadence'] ) ? sanitize_key( (string) $existing['cadence'] ) : 'manual',
+            'schedule_label'       => isset( $existing['schedule_label'] ) ? sanitize_text_field( (string) $existing['schedule_label'] ) : __( 'Not scheduled yet', 'great-imports' ),
+            'last_run_at'          => isset( $existing['last_run_at'] ) ? sanitize_text_field( (string) $existing['last_run_at'] ) : '',
+            'last_run_status'      => isset( $existing['last_run_status'] ) ? sanitize_text_field( (string) $existing['last_run_status'] ) : __( 'Never run', 'great-imports' ),
+            'next_run_at'          => isset( $existing['next_run_at'] ) ? sanitize_text_field( (string) $existing['next_run_at'] ) : '',
+            'created_at'           => isset( $existing['created_at'] ) ? sanitize_text_field( (string) $existing['created_at'] ) : $now,
             'updated_at'           => $now,
             'saved_by'             => get_current_user_id(),
         );
@@ -350,25 +357,37 @@ final class GI_Admin {
         );
 
         echo '<div class="gi-recurring-sources">';
-        echo '<h3>' . esc_html__( 'Saved Recurring URLs', 'great-imports' ) . '</h3>';
-        echo '<ul>';
+        echo '<h3>' . esc_html__( 'Saved Recurring Sources', 'great-imports' ) . '</h3>';
+        echo '<table class="widefat striped gi-recurring-source-table">';
+        echo '<thead><tr>';
+        echo '<th scope="col">' . esc_html__( 'Name', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'URL', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Type', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Status', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Schedule', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Last run', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Next run', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Saved', 'great-imports' ) . '</th>';
+        echo '</tr></thead>';
+        echo '<tbody>';
         foreach ( $sources as $source ) {
             $url = isset( $source['source_url'] ) ? esc_url_raw( (string) $source['source_url'] ) : '';
             if ( '' === $url ) {
                 continue;
             }
-            $kind  = isset( $source['source_kind'] ) && '' !== $source['source_kind'] ? sanitize_key( (string) $source['source_kind'] ) : 'event';
-            $saved = isset( $source['updated_at'] ) ? sanitize_text_field( (string) $source['updated_at'] ) : '';
-            echo '<li>';
-            echo '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a>';
-            echo ' <span class="gi-recurring-source-meta">' . esc_html( $kind );
-            if ( '' !== $saved ) {
-                echo ' · ' . esc_html( $saved );
-            }
-            echo '</span>';
-            echo '</li>';
+            echo '<tr>';
+            echo '<td>' . esc_html( $this->recurring_source_name( $source ) ) . '</td>';
+            echo '<td class="gi-recurring-source-url"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a></td>';
+            echo '<td>' . esc_html( $this->recurring_source_kind_label( $source ) ) . '</td>';
+            echo '<td>' . esc_html( ! empty( $source['enabled'] ) ? __( 'Enabled', 'great-imports' ) : __( 'Paused', 'great-imports' ) ) . '</td>';
+            echo '<td>' . esc_html( $this->recurring_source_schedule_label( $source ) ) . '</td>';
+            echo '<td>' . esc_html( $this->recurring_source_last_run_label( $source ) ) . '</td>';
+            echo '<td>' . esc_html( $this->recurring_source_time_label( $source, 'next_run_at', __( 'Not scheduled', 'great-imports' ) ) ) . '</td>';
+            echo '<td>' . esc_html( $this->recurring_source_time_label( $source, 'updated_at', __( 'Unknown', 'great-imports' ) ) ) . '</td>';
+            echo '</tr>';
         }
-        echo '</ul>';
+        echo '</tbody>';
+        echo '</table>';
         echo '</div>';
     }
 
@@ -459,6 +478,92 @@ final class GI_Admin {
     private function saved_recurring_sources() {
         $sources = get_option( 'great_imports_recurring_sources', array() );
         return is_array( $sources ) ? $sources : array();
+    }
+
+    private function recurring_source_name_from_validation( array $validated ) {
+        $kind = isset( $validated['source_kind'] ) ? sanitize_key( (string) $validated['source_kind'] ) : '';
+        if ( 'organizer' === $kind && ! empty( $validated['organizer_id'] ) ) {
+            return sprintf(
+                /* translators: %s: Eventbrite organizer ID. */
+                __( 'Eventbrite organizer %s', 'great-imports' ),
+                sanitize_text_field( (string) $validated['organizer_id'] )
+            );
+        }
+
+        if ( ! empty( $validated['event_id'] ) ) {
+            return sprintf(
+                /* translators: %s: Eventbrite event ID. */
+                __( 'Eventbrite event %s', 'great-imports' ),
+                sanitize_text_field( (string) $validated['event_id'] )
+            );
+        }
+
+        return __( 'Eventbrite source', 'great-imports' );
+    }
+
+    private function recurring_source_name( array $source ) {
+        if ( ! empty( $source['name'] ) ) {
+            return sanitize_text_field( (string) $source['name'] );
+        }
+
+        if ( ! empty( $source['eventbrite_organizer_id'] ) ) {
+            return sprintf(
+                /* translators: %s: Eventbrite organizer ID. */
+                __( 'Eventbrite organizer %s', 'great-imports' ),
+                sanitize_text_field( (string) $source['eventbrite_organizer_id'] )
+            );
+        }
+
+        if ( ! empty( $source['eventbrite_event_id'] ) ) {
+            return sprintf(
+                /* translators: %s: Eventbrite event ID. */
+                __( 'Eventbrite event %s', 'great-imports' ),
+                sanitize_text_field( (string) $source['eventbrite_event_id'] )
+            );
+        }
+
+        return __( 'Eventbrite source', 'great-imports' );
+    }
+
+    private function recurring_source_kind_label( array $source ) {
+        $kind = isset( $source['source_kind'] ) ? sanitize_key( (string) $source['source_kind'] ) : '';
+        if ( 'organizer' === $kind ) {
+            return __( 'Organizer URL', 'great-imports' );
+        }
+
+        if ( 'event' === $kind ) {
+            return __( 'Event URL', 'great-imports' );
+        }
+
+        return __( 'Eventbrite URL', 'great-imports' );
+    }
+
+    private function recurring_source_schedule_label( array $source ) {
+        if ( ! empty( $source['schedule_label'] ) ) {
+            return sanitize_text_field( (string) $source['schedule_label'] );
+        }
+
+        return __( 'Not scheduled yet', 'great-imports' );
+    }
+
+    private function recurring_source_last_run_label( array $source ) {
+        if ( ! empty( $source['last_run_at'] ) ) {
+            return sanitize_text_field( (string) $source['last_run_at'] );
+        }
+
+        if ( ! empty( $source['last_run_status'] ) ) {
+            return sanitize_text_field( (string) $source['last_run_status'] );
+        }
+
+        return __( 'Never run', 'great-imports' );
+    }
+
+    private function recurring_source_time_label( array $source, $key, $fallback ) {
+        if ( ! empty( $source[ $key ] ) ) {
+            return sanitize_text_field( (string) $source[ $key ] );
+        }
+
+        return $fallback;
     }
 
     private function source_search_event_summary( array $event ) {

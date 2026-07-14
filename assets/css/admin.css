@@ -81,17 +81,18 @@
     margin: 0 0 6px;
 }
 
-.gi-recurring-sources ul {
-    margin: 0;
+.gi-recurring-source-table {
+    margin-top: 6px;
 }
 
-.gi-recurring-sources li {
-    margin: 4px 0;
+.gi-recurring-source-table th,
+.gi-recurring-source-table td {
+    vertical-align: top;
 }
 
-.gi-recurring-source-meta {
-    color: #646970;
-    font-size: 12px;
+.gi-recurring-source-url {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .gi-list-panel {
