@@ -32,6 +32,8 @@ final class GI_Admin {
         add_action( 'admin_post_gi_eventbrite_save_settings', array( $this, 'handle_eventbrite_save_settings' ) );
         add_action( 'admin_post_gi_eventbrite_save_recurring_from_source', array( $this, 'handle_eventbrite_save_recurring_from_source' ) );
         add_action( 'admin_post_gi_run_recurring_source', array( $this, 'handle_run_recurring_source' ) );
+        add_action( 'admin_post_gi_save_recurring_source_settings', array( $this, 'handle_save_recurring_source_settings' ) );
+        add_action( 'great_imports_run_recurring_sources', array( $this, 'run_due_recurring_sources' ) );
         add_action( 'admin_post_gi_download_exploratory_report', array( $this, 'handle_download_exploratory_report' ) );
         add_action( 'admin_post_gi_manual_data_removal', array( $this, 'handle_manual_data_removal' ) );
         add_action( 'admin_post_gi_save_candidate_field', array( $this, 'handle_save_candidate_field' ) );
@@ -195,6 +197,8 @@ final class GI_Admin {
             'eventbrite_event_id'  => isset( $validated['event_id'] ) ? sanitize_text_field( (string) $validated['event_id'] ) : '',
             'eventbrite_organizer_id' => isset( $validated['organizer_id'] ) ? sanitize_text_field( (string) $validated['organizer_id'] ) : '',
             'enabled'              => isset( $existing['enabled'] ) ? (bool) $existing['enabled'] : true,
+            'auto_enabled'         => isset( $existing['auto_enabled'] ) ? (bool) $existing['auto_enabled'] : false,
+            'frequency_hours'      => isset( $existing['frequency_hours'] ) ? $this->normalize_recurring_frequency( $existing['frequency_hours'] ) : 24,
             'cadence'              => isset( $existing['cadence'] ) ? sanitize_key( (string) $existing['cadence'] ) : 'manual',
             'search_ahead_days'    => isset( $existing['search_ahead_days'] ) ? absint( $existing['search_ahead_days'] ) : 30,
             'schedule_label'       => isset( $existing['schedule_label'] ) ? sanitize_text_field( (string) $existing['schedule_label'] ) : __( 'Manual run', 'great-imports' ),
@@ -228,6 +232,37 @@ final class GI_Admin {
         $this->redirect_with_notice( 'success', $message, 0 );
     }
 
+    public function handle_save_recurring_source_settings() {
+        $this->guard( 'save recurring source settings' );
+
+        $source_id = isset( $_POST['source_id'] ) ? sanitize_text_field( wp_unslash( $_POST['source_id'] ) ) : '';
+        check_admin_referer( 'gi_save_recurring_source_settings_' . $source_id );
+
+        $saved = $this->saved_recurring_sources();
+        if ( '' === $source_id || empty( $saved[ $source_id ] ) || ! is_array( $saved[ $source_id ] ) ) {
+            $this->redirect_with_notice( 'error', __( 'Saved recurring source could not be found.', 'great-imports' ), 0 );
+        }
+
+        $auto_enabled      = ! empty( $_POST['auto_enabled'] );
+        $frequency_hours   = isset( $_POST['frequency_hours'] ) ? $this->normalize_recurring_frequency( wp_unslash( $_POST['frequency_hours'] ) ) : 24;
+        $search_ahead_days = isset( $_POST['search_ahead_days'] ) ? absint( wp_unslash( $_POST['search_ahead_days'] ) ) : 30;
+        $search_ahead_days = max( 1, min( 365, $search_ahead_days ) );
+        $now               = current_time( 'mysql' );
+
+        $saved[ $source_id ]['auto_enabled']      = $auto_enabled;
+        $saved[ $source_id ]['enabled']           = true;
+        $saved[ $source_id ]['frequency_hours']   = $frequency_hours;
+        $saved[ $source_id ]['cadence']           = $auto_enabled ? 'auto' : 'manual';
+        $saved[ $source_id ]['search_ahead_days'] = $search_ahead_days;
+        $saved[ $source_id ]['schedule_label']    = $auto_enabled ? $this->recurring_source_frequency_label( $frequency_hours ) : __( 'Manual run', 'great-imports' );
+        $saved[ $source_id ]['next_run_at']       = $auto_enabled ? $this->recurring_source_next_run_time( $frequency_hours ) : '';
+        $saved[ $source_id ]['updated_at']        = $now;
+
+        update_option( 'great_imports_recurring_sources', $saved, false );
+
+        $this->redirect_with_notice( 'success', __( 'Saved recurring source settings updated.', 'great-imports' ), 0 );
+    }
+
     public function handle_run_recurring_source() {
         $this->guard( 'run saved recurring sources' );
 
@@ -246,54 +281,33 @@ final class GI_Admin {
 
         $search_ahead_days = isset( $_POST['search_ahead_days'] ) ? absint( wp_unslash( $_POST['search_ahead_days'] ) ) : 30;
         $search_ahead_days = max( 1, min( 365, $search_ahead_days ) );
-        $now               = current_time( 'mysql' );
-
-        $saved[ $source_id ]['search_ahead_days'] = $search_ahead_days;
-        $saved[ $source_id ]['last_run_at']       = $now;
-        $saved[ $source_id ]['last_run_status']   = __( 'Running', 'great-imports' );
-        $saved[ $source_id ]['updated_at']        = $now;
-        update_option( 'great_imports_recurring_sources', $saved, false );
-
-        try {
-            $result = $this->importer->import_once( $url );
-        } catch ( Throwable $exception ) {
-            $message = sprintf(
-                __( 'Saved recurring source run stopped before candidates could be collected: %s', 'great-imports' ),
-                $exception->getMessage()
-            );
-            $saved[ $source_id ]['last_run_status']  = __( 'Failed', 'great-imports' );
-            $saved[ $source_id ]['last_run_message'] = sanitize_text_field( $message );
-            $saved[ $source_id ]['last_run_at']      = current_time( 'mysql' );
-            update_option( 'great_imports_recurring_sources', $saved, false );
-            $this->redirect_with_notice( 'error', $message, 0 );
-        }
-
+        $result = $this->run_recurring_source( $source_id, $saved[ $source_id ], $search_ahead_days, 'manual' );
         $message = isset( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : '';
-        $saved[ $source_id ]['last_run_status']  = ! empty( $result['success'] ) ? __( 'Completed', 'great-imports' ) : __( 'Failed', 'great-imports' );
-        $saved[ $source_id ]['last_run_message'] = $message;
-        $saved[ $source_id ]['last_run_at']      = current_time( 'mysql' );
-        $saved[ $source_id ]['last_post_id']     = isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0;
-        $saved[ $source_id ]['updated_at']       = current_time( 'mysql' );
-        update_option( 'great_imports_recurring_sources', $saved, false );
-
-        $this->save_source_search_trace(
-            array(
-                'stage'             => 'ran_saved_recurring_source',
-                'submitted_url'     => $url,
-                'source_url'        => $url,
-                'finished_at_gmt'   => gmdate( 'Y-m-d H:i:s' ),
-                'plugin_version'    => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
-                'admin_action'      => 'gi_run_recurring_source',
-                'success'           => ! empty( $result['success'] ),
-                'message'           => $message,
-                'saved_source_id'   => $source_id,
-                'search_ahead_days' => $search_ahead_days,
-                'post_id'           => isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0,
-                'event_summary'     => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
-            )
-        );
 
         $this->redirect_with_notice( ! empty( $result['success'] ) ? 'success' : 'error', $message, isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0 );
+    }
+
+    public function run_due_recurring_sources() {
+        $saved = $this->saved_recurring_sources();
+        if ( empty( $saved ) ) {
+            return;
+        }
+
+        $now_ts = current_time( 'timestamp' );
+        foreach ( $saved as $source_id => $source ) {
+            if ( ! is_array( $source ) || empty( $source['auto_enabled'] ) ) {
+                continue;
+            }
+
+            $next_run_at = isset( $source['next_run_at'] ) ? sanitize_text_field( (string) $source['next_run_at'] ) : '';
+            $next_ts     = '' !== $next_run_at ? strtotime( $next_run_at ) : 0;
+            if ( $next_ts && $next_ts > $now_ts ) {
+                continue;
+            }
+
+            $days = isset( $source['search_ahead_days'] ) ? absint( $source['search_ahead_days'] ) : 30;
+            $this->run_recurring_source( sanitize_text_field( (string) $source_id ), $source, $days, 'auto' );
+        }
     }
 
     public function handle_save_candidate_field() {
@@ -434,12 +448,11 @@ final class GI_Admin {
         echo '<th scope="col">' . esc_html__( 'Name', 'great-imports' ) . '</th>';
         echo '<th scope="col">' . esc_html__( 'URL', 'great-imports' ) . '</th>';
         echo '<th scope="col">' . esc_html__( 'Type', 'great-imports' ) . '</th>';
-        echo '<th scope="col">' . esc_html__( 'Status', 'great-imports' ) . '</th>';
-        echo '<th scope="col">' . esc_html__( 'Schedule', 'great-imports' ) . '</th>';
-        echo '<th scope="col">' . esc_html__( 'Search ahead', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Auto run', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Every', 'great-imports' ) . '</th>';
         echo '<th scope="col">' . esc_html__( 'Last run', 'great-imports' ) . '</th>';
         echo '<th scope="col">' . esc_html__( 'Next run', 'great-imports' ) . '</th>';
-        echo '<th scope="col">' . esc_html__( 'Run', 'great-imports' ) . '</th>';
+        echo '<th scope="col">' . esc_html__( 'Actions', 'great-imports' ) . '</th>';
         echo '<th scope="col">' . esc_html__( 'Saved', 'great-imports' ) . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
@@ -452,12 +465,11 @@ final class GI_Admin {
             echo '<td>' . esc_html( $this->recurring_source_name( $source ) ) . '</td>';
             echo '<td class="gi-recurring-source-url"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a></td>';
             echo '<td>' . esc_html( $this->recurring_source_kind_label( $source ) ) . '</td>';
-            echo '<td>' . esc_html( ! empty( $source['enabled'] ) ? __( 'Enabled', 'great-imports' ) : __( 'Paused', 'great-imports' ) ) . '</td>';
+            echo '<td>' . esc_html( ! empty( $source['auto_enabled'] ) ? __( 'On', 'great-imports' ) : __( 'Off', 'great-imports' ) ) . '</td>';
             echo '<td>' . esc_html( $this->recurring_source_schedule_label( $source ) ) . '</td>';
-            echo '<td>' . esc_html( $this->recurring_source_search_ahead_label( $source ) ) . '</td>';
             echo '<td>' . esc_html( $this->recurring_source_last_run_label( $source ) ) . '</td>';
             echo '<td>' . esc_html( $this->recurring_source_time_label( $source, 'next_run_at', __( 'Not scheduled', 'great-imports' ) ) ) . '</td>';
-            echo '<td>' . $this->recurring_source_run_form( $source ) . '</td>';
+            echo '<td>' . $this->recurring_source_actions( $source ) . '</td>';
             echo '<td>' . esc_html( $this->recurring_source_time_label( $source, 'updated_at', __( 'Unknown', 'great-imports' ) ) ) . '</td>';
             echo '</tr>';
         }
@@ -614,6 +626,10 @@ final class GI_Admin {
     }
 
     private function recurring_source_schedule_label( array $source ) {
+        if ( ! empty( $source['auto_enabled'] ) ) {
+            return $this->recurring_source_frequency_label( isset( $source['frequency_hours'] ) ? $source['frequency_hours'] : 24 );
+        }
+
         if ( ! empty( $source['schedule_label'] ) ) {
             return sanitize_text_field( (string) $source['schedule_label'] );
         }
@@ -656,7 +672,7 @@ final class GI_Admin {
         return $fallback;
     }
 
-    private function recurring_source_run_form( array $source ) {
+    private function recurring_source_actions( array $source ) {
         $source_id = isset( $source['id'] ) ? sanitize_text_field( (string) $source['id'] ) : '';
         if ( '' === $source_id ) {
             return '';
@@ -664,18 +680,139 @@ final class GI_Admin {
 
         $days = isset( $source['search_ahead_days'] ) ? absint( $source['search_ahead_days'] ) : 30;
         $days = max( 1, min( 365, $days ) );
+        $frequency = $this->normalize_recurring_frequency( isset( $source['frequency_hours'] ) ? $source['frequency_hours'] : 24 );
+        $auto_checked = ! empty( $source['auto_enabled'] ) ? ' checked' : '';
 
-        $output  = '<form class="gi-recurring-run-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        $output .= '<input type="hidden" name="action" value="gi_run_recurring_source">';
+        $output  = '<div class="gi-recurring-actions">';
+        $output .= '<form class="gi-recurring-settings-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        $output .= '<input type="hidden" name="action" value="gi_save_recurring_source_settings">';
         $output .= '<input type="hidden" name="source_id" value="' . esc_attr( $source_id ) . '">';
-        $output .= wp_nonce_field( 'gi_run_recurring_source_' . $source_id, '_wpnonce', true, false );
-        $output .= '<label class="screen-reader-text" for="gi_search_ahead_days_' . esc_attr( $source_id ) . '">' . esc_html__( 'Search ahead days', 'great-imports' ) . '</label>';
-        $output .= '<input type="number" class="small-text gi-search-ahead-input" id="gi_search_ahead_days_' . esc_attr( $source_id ) . '" name="search_ahead_days" min="1" max="365" value="' . esc_attr( $days ) . '"> ';
-        $output .= '<span class="gi-recurring-run-unit">' . esc_html__( 'days', 'great-imports' ) . '</span> ';
-        $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Run', 'great-imports' ) . '</button>';
+        $output .= wp_nonce_field( 'gi_save_recurring_source_settings_' . $source_id, '_wpnonce', true, false );
+        $output .= '<label class="gi-recurring-inline-check"><input type="checkbox" name="auto_enabled" value="1"' . $auto_checked . '> ' . esc_html__( 'Auto run', 'great-imports' ) . '</label>';
+        $output .= '<label><span class="screen-reader-text">' . esc_html__( 'Run frequency', 'great-imports' ) . '</span>';
+        $output .= '<select name="frequency_hours">';
+        foreach ( $this->recurring_frequency_options() as $hours => $label ) {
+            $output .= '<option value="' . esc_attr( $hours ) . '"' . selected( $frequency, $hours, false ) . '>' . esc_html( $label ) . '</option>';
+        }
+        $output .= '</select></label>';
+        $output .= '<label><span class="gi-recurring-field-label">' . esc_html__( 'Ahead', 'great-imports' ) . '</span> ';
+        $output .= '<input type="number" class="small-text gi-search-ahead-input" name="search_ahead_days" min="1" max="365" value="' . esc_attr( $days ) . '"> ';
+        $output .= esc_html__( 'days', 'great-imports' ) . '</label>';
+        $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Save', 'great-imports' ) . '</button>';
         $output .= '</form>';
 
+        $output .= '<form class="gi-recurring-run-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        $output .= '<input type="hidden" name="action" value="gi_run_recurring_source">';
+        $output .= '<input type="hidden" name="source_id" value="' . esc_attr( $source_id ) . '">';
+        $output .= '<input type="hidden" name="search_ahead_days" value="' . esc_attr( $days ) . '">';
+        $output .= wp_nonce_field( 'gi_run_recurring_source_' . $source_id, '_wpnonce', true, false );
+        $output .= '<button type="submit" class="button button-small">' . esc_html__( 'Run now', 'great-imports' ) . '</button>';
+        $output .= '</form>';
+        $output .= '</div>';
+
         return $output;
+    }
+
+    private function run_recurring_source( $source_id, array $source, $search_ahead_days, $run_mode ) {
+        $saved = $this->saved_recurring_sources();
+        if ( empty( $saved[ $source_id ] ) || ! is_array( $saved[ $source_id ] ) ) {
+            return array(
+                'success' => false,
+                'message' => __( 'Saved recurring source could not be found.', 'great-imports' ),
+                'post_id' => 0,
+            );
+        }
+
+        $url = isset( $source['source_url'] ) ? esc_url_raw( (string) $source['source_url'] ) : '';
+        if ( '' === $url ) {
+            return array(
+                'success' => false,
+                'message' => __( 'Saved recurring source does not have a URL to run.', 'great-imports' ),
+                'post_id' => 0,
+            );
+        }
+
+        $search_ahead_days = max( 1, min( 365, absint( $search_ahead_days ) ) );
+        $frequency_hours   = $this->normalize_recurring_frequency( isset( $source['frequency_hours'] ) ? $source['frequency_hours'] : 24 );
+        $now               = current_time( 'mysql' );
+
+        $saved[ $source_id ]['search_ahead_days'] = $search_ahead_days;
+        $saved[ $source_id ]['last_run_at']       = $now;
+        $saved[ $source_id ]['last_run_status']   = __( 'Running', 'great-imports' );
+        $saved[ $source_id ]['updated_at']        = $now;
+        update_option( 'great_imports_recurring_sources', $saved, false );
+
+        try {
+            $result = $this->importer->import_once( $url );
+        } catch ( Throwable $exception ) {
+            $result = array(
+                'success' => false,
+                'message' => sprintf(
+                    __( 'Saved recurring source run stopped before candidates could be collected: %s', 'great-imports' ),
+                    $exception->getMessage()
+                ),
+                'post_id' => 0,
+                'event'   => array(),
+            );
+        }
+
+        $message = isset( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : '';
+        $saved   = $this->saved_recurring_sources();
+        $saved[ $source_id ]['last_run_status']  = ! empty( $result['success'] ) ? __( 'Completed', 'great-imports' ) : __( 'Failed', 'great-imports' );
+        $saved[ $source_id ]['last_run_message'] = $message;
+        $saved[ $source_id ]['last_run_at']      = current_time( 'mysql' );
+        $saved[ $source_id ]['last_run_mode']    = sanitize_key( (string) $run_mode );
+        $saved[ $source_id ]['last_post_id']     = isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0;
+        $saved[ $source_id ]['next_run_at']      = ! empty( $saved[ $source_id ]['auto_enabled'] ) ? $this->recurring_source_next_run_time( $frequency_hours ) : '';
+        $saved[ $source_id ]['updated_at']       = current_time( 'mysql' );
+        update_option( 'great_imports_recurring_sources', $saved, false );
+
+        $this->save_source_search_trace(
+            array(
+                'stage'             => 'ran_saved_recurring_source',
+                'submitted_url'     => $url,
+                'source_url'        => $url,
+                'finished_at_gmt'   => gmdate( 'Y-m-d H:i:s' ),
+                'plugin_version'    => defined( 'GREAT_IMPORTS_VERSION' ) ? GREAT_IMPORTS_VERSION : '',
+                'admin_action'      => 'gi_run_recurring_source',
+                'run_mode'          => sanitize_key( (string) $run_mode ),
+                'success'           => ! empty( $result['success'] ),
+                'message'           => $message,
+                'saved_source_id'   => $source_id,
+                'search_ahead_days' => $search_ahead_days,
+                'post_id'           => isset( $result['post_id'] ) ? absint( $result['post_id'] ) : 0,
+                'event_summary'     => isset( $result['event'] ) && is_array( $result['event'] ) ? $this->source_search_event_summary( $result['event'] ) : array(),
+            )
+        );
+
+        return $result;
+    }
+
+    private function normalize_recurring_frequency( $hours ) {
+        $hours = absint( $hours );
+        $allowed = array_keys( $this->recurring_frequency_options() );
+        return in_array( $hours, $allowed, true ) ? $hours : 24;
+    }
+
+    private function recurring_frequency_options() {
+        return array(
+            1   => __( 'Hourly', 'great-imports' ),
+            6   => __( 'Every 6 hours', 'great-imports' ),
+            12  => __( 'Every 12 hours', 'great-imports' ),
+            24  => __( 'Daily', 'great-imports' ),
+            168 => __( 'Weekly', 'great-imports' ),
+        );
+    }
+
+    private function recurring_source_frequency_label( $hours ) {
+        $hours = $this->normalize_recurring_frequency( $hours );
+        $options = $this->recurring_frequency_options();
+        return isset( $options[ $hours ] ) ? $options[ $hours ] : __( 'Daily', 'great-imports' );
+    }
+
+    private function recurring_source_next_run_time( $frequency_hours ) {
+        $frequency_hours = $this->normalize_recurring_frequency( $frequency_hours );
+        return date_i18n( 'Y-m-d H:i:s', current_time( 'timestamp' ) + ( $frequency_hours * HOUR_IN_SECONDS ) );
     }
 
     private function source_search_event_summary( array $event ) {

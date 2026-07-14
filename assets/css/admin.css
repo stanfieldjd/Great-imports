@@ -95,12 +95,32 @@
     word-break: break-word;
 }
 
+.gi-recurring-actions,
+.gi-recurring-settings-form,
 .gi-recurring-run-form {
     align-items: center;
     display: flex;
     gap: 4px;
+}
+
+.gi-recurring-actions {
+    align-items: flex-start;
+    flex-direction: column;
+}
+
+.gi-recurring-settings-form,
+.gi-recurring-run-form {
     margin: 0;
     white-space: nowrap;
+}
+
+.gi-recurring-inline-check {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.gi-recurring-field-label {
+    color: #50575e;
 }
 
 .gi-search-ahead-input {
