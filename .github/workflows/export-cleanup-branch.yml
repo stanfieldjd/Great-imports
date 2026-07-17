@@ -18,11 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Package repository
-        run: tar --exclude=.git -czf repository.tar.gz .
+        run: tar --exclude=.git -czf /tmp/repository.tar.gz .
       - name: Upload repository archive
         uses: actions/upload-artifact@v4
         with:
           name: cleanup-branch-source
-          path: repository.tar.gz
+          path: /tmp/repository.tar.gz
           if-no-files-found: error
           retention-days: 1
