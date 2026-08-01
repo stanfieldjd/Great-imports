@@ -1,360 +1,87 @@
 === Great Imports ===
-Contributors: greatimports
-Requires at least: 6.0
-Tested up to: 6.6
-Requires PHP: 7.4
-Stable tag: 0.2.74
+Contributors: chattanoogamusicscene
+Tags: events, importer, events-manager, ics, csv
+Requires at least: 6.2
+Tested up to: 7.0
+Requires PHP: 8.0
+Stable tag: 4.9.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Full evidence-first Eventbrite importer with candidate review editing, manual data removal, source-page display reports, coverage audits, import previews, and review reports.
+Collect, review, correct, import, update, and schedule events for Events Manager from URLs, feeds, ICS, CSV, and JSON files.
 
 == Description ==
 
-Great Imports collects Eventbrite evidence into internal review candidates, then imports reviewed candidates into Events Manager draft events when the Import to Events Manager action is selected.
+Great Imports provides one shared pipeline for manual and recurring event imports.
 
-The main admin screen now puts source search and the Recent Event Candidates list first. Eventbrite settings, report download, and manual data removal are secondary collapsed utility panels.
+Main workflow:
 
-The Recent Event Candidates list uses a dedicated WP_List_Table-derived class so the candidate rows follow WordPress admin list-table structure instead of custom table markup.
+1. Paste one public event URL or many URLs, or choose an ICS, CSV, or JSON file.
+2. Choose what happens after events are found and whether every event should use its detected location or one forced location.
+3. Choose Run once, or choose a repeat frequency and Save recurring.
+4. Great Imports checks the source immediately. Each submitted URL receives its own event queue on the next page.
+5. Review candidates beneath the URL that found them, import ready events in batches, and edit only exceptions.
+6. Saved recurring URLs keep their filters, automatic schedule, and manual check control with their own queue.
 
-Tickets are read-only source facts. Great Imports does not edit ticket URL, price, currency, or ticket classes. Source/debug details remain behind an Advanced section.
+Included behavior:
 
-Great Imports prepares reviewed Events Manager event and location fields for storage handoff. A matched Events Manager location can also be selected from the Location area. Explicit source coordinates are carried into the private Events Manager storage handoff when present, and existing coordinate data is preserved unless an explicit replacement decision is recorded.
+* Generic HTML and JSON-LD event collection.
+* Event detail-page discovery from listing and calendar pages.
+* ICS/iCalendar, CSV, and JSON processing.
+* Festival schedules with multiple days, simultaneous stages, and per-slot locations.
+* Direct synchronization with Events Manager native time-slot database tables.
+* Optional Eventbrite and Ticketmaster detail API enrichment when credentials are configured.
+* Deterministic evidence precedence: detail, API, and ICS evidence outrank listing-card evidence.
+* Equal-quality conflicts remain visible for review rather than being guessed away.
+* Multi-key duplicate matching joins listing, detail-page, iCal, API, and existing Events Manager representations of the same event before review.
+* Multi-source enrichment that fills missing fields and retains provenance URLs.
+* Administrator candidate corrections preserved as highest-priority evidence.
+* Existing-location matching, forced-location rules, and direct Events Manager location table/post-meta synchronization for source-provided coordinates.
+* Festival, conference, multi-session, multi-location, stage, room, and parent-venue support.
+* Event categories, tags, featured images, ticket URL, price, currency, and organizer content.
+* Daily, weekly, and monthly event-series editing, with individually editable Events Manager events for each occurrence.
+* ICS RRULE and recurrence fields from supported CSV and JSON sources.
+* Per-source run locking to prevent overlapping scheduled and manual writes.
+* Context-aware pornography and explicit-nudity filtering with Standard and Strict sensitivity, custom phrases, trusted websites, and manual approval for uncertain events.
+* Settings-only import activity and administrator diagnostics, with automatic deletion after 30 days and credentials and coordinate values excluded.
+* Uninstall cleanup limited to Great Imports data. Imported Events Manager events, locations, and Media Library files remain intact.
 
-Manual Data Removal removes only Great Imports-owned data: private token/options, review candidates, evidence records, Great Imports metadata, and Great Imports transients. It does not delete Events Manager events, Events Manager locations, tickets, media, categories, tags, or venue data.
+== Administration screens ==
 
-This version saves recurring source records for later recurring use, but does not schedule automatic recurring imports, directly publish Events Manager events, create Events Manager tickets/bookings, or create Media Library attachments. Source images are preserved in the Events Manager description when source evidence provides them.
+* Import: paste one URL, paste multiple URLs one per line, or choose an event file. Choose Run once or Save recurring on this page.
+* Review events: every URL owns one collapsible event queue. Recurring filters and scheduling stay with the saved URL; one-time URLs show no duplicate run/save decision.
+* Candidate editor: choose one detected or existing Events Manager location from a single location selector. Correct address or venue structure only when necessary, and optionally save the choice as a reusable source rule.
+* Settings → Import activity: review collected, held, imported, updated, blocked, failed, filtered, skipped-existing, and outside-window totals when troubleshooting.
+* Settings: set importer defaults, performance safeguards, parser health, automatic removal of completed Run once sources from the active queue, uninstall behavior, and optional platform credentials.
+
+== Acceptance test ==
+
+A release should be considered environment-verified only after this sequence succeeds on the target site:
+
+1. Scan a venue calendar URL in Review mode.
+2. Confirm candidates appear with useful hold reasons rather than an empty queue.
+3. Correct one candidate if required and import it as draft.
+4. Confirm the Events Manager event row and location relationship exist.
+5. Re-run the same source and confirm the existing event updates without duplication.
+6. Import a short repeating series and confirm each occurrence is independently editable.
+7. Save the source as recurring, pause it, and confirm manual Run now still works.
+8. Download diagnostics and confirm no credentials or coordinate values are present.
 
 == Changelog ==
 
-= 0.2.74 =
-* Removes successfully imported and recurring-imported candidates from the Recent Event Candidates queue.
-* Preserves candidate records and import trace metadata for reports and duplicate matching.
-* Keeps failed and unimported candidates in the queue.
+= 4.9.9 =
+* Added explicit scanner annotations for intentional admin request handling and direct Events Manager database synchronization.
+* Replaced the remaining native time-slot table interpolation with prepared identifier placeholders.
+* Trimmed the packaged changelog to stay within WordPress.org parser limits.
 
-= 0.2.73 =
-* Adds a forced Events Manager location option to saved recurring sources.
-* Stores the forced location on the saved source and applies it to candidates collected by that saved source through existing review location metadata.
-* Keeps saved recurring runs on the candidate collection path without creating Events Manager events or tickets.
+= 4.9.8 =
+* Reworked remaining location-display translation branches so placeholder comments sit directly above each translated placeholder string.
 
-= 0.2.72 =
-* Adds a Delete action for saved recurring sources.
-* Deletes only the selected saved recurring source record from Great Imports saved source options.
+= 4.9.7 =
+* Removed remaining scanner-sensitive SQL table interpolation and CSV temporary file writes.
+* Repositioned translator comments so placeholder strings are recognized reliably by Plugin Check.
 
-= 0.2.71 =
-* Adds auto-run settings for saved recurring sources with on/off, frequency, search-ahead days, next-run time, and Run now controls.
-* Registers an hourly WP-Cron runner that runs enabled saved recurring sources when due and schedules the next run.
-* Keeps saved recurring runs on the existing candidate collection path without creating Events Manager events or tickets.
+= 4.9.6 =
+* Hardened request sanitization, output escaping, dynamic SQL identifiers, temporary files, translations, and WordPress.org package metadata.
 
-= 0.2.70 =
-* Adds a Search ahead days control to each saved recurring source row.
-* Adds a Run button for saved recurring sources that runs the saved source URL through the existing candidate collection path.
-* Records last run status, message, candidate post ID, run time, and search-ahead days on the saved recurring source record.
-
-= 0.2.69 =
-* Displays saved recurring sources as a proper table with name, URL, type, enabled status, schedule state, last run, next run, and saved time.
-* Stores generated source names and honest schedule/run placeholders with saved recurring source URL records.
-* Keeps Save Recurring as a URL-save action and does not create Events Manager recurring events from the Source panel save button.
-
-= 0.2.68 =
-* Changes Source panel Save Recurring into a saved recurring URL action instead of an immediate Source Search/import action.
-* Stores validated Eventbrite source URLs in Great Imports recurring source options and displays saved recurring URLs under the Source panel.
-* Keeps Search Source as the candidate collection action and does not create Events Manager recurring events from the Source panel save button.
-
-= 0.2.67 =
-* Fixes the Source panel buttons so Save Recurring submits the recurring source action instead of falling through to normal Search Source.
-* Removes the hidden Source form action and gives each Source panel button its own explicit action value.
-
-= 0.2.66 =
-* Reissues the Source-panel Save Recurring change as a single complete release commit so the downloadable tag includes the admin button and handler together.
-
-= 0.2.65 =
-* Moves Save Recurring to the Source panel after Search Source.
-* Saves recurring events from the submitted Source Search URL by collecting/updating the candidate first, then running the recurring Events Manager save internally.
-* Removes the candidate-row Save Recurring button so recurring save access is URL-driven instead of candidate-row driven.
-
-= 0.2.64 =
-* Shows the Save Recurring button on every candidate row so recurring save access is not hidden by automatic detection.
-* Keeps recurring save validation in the Events Manager import handler, where missing or invalid recurring dates can be reported directly.
-
-= 0.2.63 =
-* Adds a Save Recurring button for candidates with a source series marker or multi-day date range.
-* Saves recurring candidates through Events Manager repeating events and recurrence sets while reusing the existing location handoff.
-* Records recurring import IDs and trace metadata separately from normal one-off Events Manager imports.
-
-= 0.2.62 =
-* Removes the Source panel helper sentence under the Search Source field.
-
-= 0.2.61 =
-* Fixes numeric Eventbrite organizer URL validation for `/o/58111834153` style source URLs.
-* Removes the visible last-search trace line from the Source panel while keeping the same diagnostics in exploratory reports.
-
-= 0.2.60 =
-* Records the last Source Search attempt before and after importer execution so failed or empty searches are visible on the admin screen and in exploratory reports.
-* Catches importer exceptions during Source Search and redirects with a recorded error instead of leaving a silent blank outcome.
-
-= 0.2.59 =
-* Accepts Eventbrite organizer URLs such as `/o/58111834153` in Search Source.
-* Captures organizer-page evidence, extracts Eventbrite event detail links from page HTML/data, and creates review candidates through the existing single-event importer.
-* Keeps Search Source candidate-only; organizer collection does not create Events Manager events or locations.
-
-= 0.2.58 =
-* Improves automatic Events Manager location matching for combined source address lines.
-* Treats contained street-address fragments as same-address evidence for dropdown auto matches.
-* Adds ranked Events Manager location fallback matching when narrow database searches miss an obvious venue.
-
-= 0.2.57 =
-* Allows automatic Events Manager location matches to appear as selected Matching Location dropdown values.
-* Uses the imported Events Manager location ID as a valid automatic dropdown selection when no reviewer override exists.
-* Labels automatic dropdown selections as auto matches while still allowing reviewers to save or replace them.
-
-= 0.2.56 =
-* Prevents repeat imports from creating duplicate Events Manager events when the candidate link is missing.
-* Reuses existing Events Manager events by Great Imports source identity first, then by exact title/date/time/location match.
-* Adds the event reuse source to the import trace.
-
-= 0.2.55 =
-* Restores primary source images to imported Events Manager descriptions when a source image URL exists and the description does not already contain it.
-* Keeps inline description images preserved through candidate storage and Events Manager payload assembly.
-
-= 0.2.54 =
-* Removes obsolete imported-content repair wording from the package documentation.
-* Keeps the admin utilities limited to Eventbrite API settings, exploratory reports, and Great Imports-owned manual data removal.
-
-= 0.2.53 =
-* Removes the automatic Events Manager single-event format mutation added in 0.2.52.
-* Keeps `#_OPENSTREETMAP` as trace evidence only so reports identify whether it comes from saved content, Events Manager format settings, or rendered output.
-
-= 0.2.52 =
-* Restores sanitized inline event description images instead of stripping all `<img>` tags.
-* Repairs Events Manager single-event formats that contain unsupported `#_OPENSTREETMAP` by replacing it with `#_LOCATIONMAP`.
-
-= 0.2.50 =
-* Stops generating a public `Good to know` section from derived duration/in-person labels.
-* Keeps Events Manager responsible for date/time and location display while retaining source-page Good-to-know evidence in reports.
-
-= 0.2.49 =
-* Adds an Events Manager duplicate-location audit to exploratory reports.
-* Groups exact and potential active EM duplicate locations by normalized venue name/address, reports hidden postcode/region differences, linked event counts, and coordinate completeness, and suggests a canonical record without merging or deleting anything.
-
-= 0.2.48 =
-* Cleans Eventbrite description HTML before it becomes candidate/event body content by removing inline images, source styling, and oversized heading/bold wrappers while preserving text, links, lists, ticket facts, and FAQs.
-* Adds a server-side exact Events Manager location reuse check before creating a new location, preferring existing matching locations with coordinates.
-* Keeps the `#_OPENSTREETMAP` trace evidence intact; reports identify it as an active Events Manager format placeholder issue, not imported event content.
-
-= 0.2.47 =
-* Stops copying Events Manager location state into the separate region field during Great Imports address handoff.
-* Prevents `#_LOCATIONFULLLINE` from displaying duplicated state/region values such as `TN` twice in the Events Manager location section.
-* Adds `location_region` to location snapshots so reports can show this field before and after import.
-
-= 0.2.46 =
-* Stops adding a duplicate venue/address Location section to the Events Manager event description.
-* Keeps the canonical address in the Events Manager location payload so the site location display and map continue to be owned by Events Manager.
-* Does not change location storage, coordinate handoff, matching, tickets, organizer details, FAQs, or the save workflow.
-
-= 0.2.45 =
-* Adds trace-only reporting for unsupported `#_OPENSTREETMAP` placeholders by comparing saved event content, the active Events Manager single-event format, and rendered single-event output.
-* Makes the next report able to identify whether the visible placeholder came from stored event content, Events Manager formatting, or render-time filters.
-* Does not change import behavior, matching, location storage, or Events Manager save workflow.
-
-= 0.2.44 =
-* Completes Eventbrite public-page coordinate handoff from explicit `event:location:latitude` and `event:location:longitude` meta evidence when JSON-LD omits `location.geo`.
-* Stores the coordinate pair privately on the candidate with provenance so the existing Events Manager storage handoff can save it server-side.
-* Keeps browser autosave, edit-screen OK alerts, geocoding calls, and matching behavior out of this repair.
-
-= 0.2.43 =
-* Publishes the matching-location reuse repair as one complete source state.
-* No behavior change from 0.2.42.
-
-= 0.2.42 =
-* Reuses strong automatic Events Manager location matches during import instead of treating them as display-only suggestions.
-* Prefers matching Events Manager locations that already have complete coordinate storage, preserving EM-produced coordinates and avoiding duplicate coordinate-less locations.
-* Keeps Great Imports out of browser autosave and the discarded location edit-page map-refresh workflow.
-
-= 0.2.41 =
-* Treats zero coordinate placeholders as missing during Events Manager storage handoff decisions.
-
-= 0.2.40 =
-* Sends Events Manager event times in database format so imported events can be listed by EM date scopes.
-* Sets imported Events Manager events to published EM status.
-* Adds event date, time, timezone, and EM status to import traces and exploratory report snapshots.
-
-= 0.2.39 =
-* Marks candidates as imported after a successful Events Manager save.
-* Shows imported candidates with their Events Manager event ID and changes repeat action wording to Update Events Manager.
-* Updates the import success message so it no longer implies the event must be a draft.
-
-= 0.2.38 =
-* Captures explicit Eventbrite venue and schema.org GeoCoordinates values as private source evidence.
-* Threads complete source coordinate pairs into the Events Manager payload with provenance while keeping raw values redacted from reports.
-* Synchronizes Events Manager location post meta and the EM locations table during import, preserving complete existing coordinates and filling missing coordinate surfaces only from explicit source evidence.
-* Keeps reviewer-selected existing locations from having their address fields rewritten.
-
-= 0.2.37 =
-* Removes the stale map-refresh-required field from Events Manager import traces and exploratory reports.
-* Keeps the active workflow focused on Events Manager storage handoff instead of the discarded browser/map-refresh workflow.
-
-= 0.2.36 =
-* Removes the Events Manager browser location readiness workflow from Great Imports.
-* Removes the location edit-page submit blocker tied to incomplete hidden coordinate fields.
-* Updates import preview and reports to describe the Events Manager storage handoff instead of the discarded geocoding/browser workflow.
-
-= 0.2.35 =
-* Historical build superseded by 0.2.36 workflow cleanup.
-
-= 0.2.34 =
-* Historical build superseded by 0.2.36 workflow cleanup.
-
-= 0.2.33 =
-* Historical build superseded by 0.2.36 workflow cleanup.
-
-= 0.2.32 =
-* Historical build superseded by 0.2.36 workflow cleanup.
-
-= 0.2.31 =
-* Historical coordinate experiment superseded by the 0.2.38 Events Manager storage handoff repair.
-
-= 0.2.30 =
-* Historical coordinate experiment superseded by the 0.2.38 Events Manager storage handoff repair.
-
-= 0.2.29 =
-* Historical coordinate experiment superseded by the 0.2.38 Events Manager storage handoff repair.
-
-= 0.2.28 =
-* Added a visible Import to Events Manager button to every candidate row.
-* Added a nonce/capability-protected draft import adapter using EM_Location and EM_Event object save methods.
-* Reuses selected locations, creates normalized locations when needed, stores recovered IDs, and updates the same imported event on repeat import.
-* Exposed events_manager_payload in exploratory reports.
-* Tickets remain description-only; no EM tickets/bookings, automatic publishing, image transfer, or scheduling.
-
-= 0.2.27 =
-* Connected the validated Events Manager payload builder to every candidate import preview and exploratory report.
-* Supersedes 0.2.26, where the builder method existed but its return value was not attached to the preview array.
-* No live Events Manager save, ticket creation, image transfer, scheduling, cleanup, or raw evidence changes.
-
-= 0.2.26 =
-* Added a validated Events Manager transfer payload to every candidate import preview and exploratory report.
-* Payload includes normalized event dates/times, timezone provenance, assembled description, source identity, and existing/create location strategy.
-* Added required-field errors, fallback warnings, and ready_for_save without calling Events Manager save methods.
-* Ticket URL and price are explicitly description-only; no Events Manager tickets or bookings are created.
-* No live event/location save, image transfer, scheduling, cleanup, or raw evidence changes.
-
-= 0.2.25 =
-* Fixed preview date/time formatting so offset-aware source times are not shifted by the WordPress timezone a second time.
-* Reused normalized candidate location fields in preview output and the assembled Location description section.
-* Added AggregateOffer low/high price fallback so source-backed price and currency appear in ticketing and the assembled description.
-* Preserved percent-encoded Eventbrite image and ticket URL components by using URL-specific normalization.
-* No Events Manager event, location, ticket, booking, scheduling, cleanup, or raw evidence changes.
-
-= 0.2.24 =
-* Reconciled composite fallback addresses with known city, state, ZIP, and country fields for candidate display and editing.
-* Extracts a terminal US ZIP only when the pattern is explicit and removes only comma-delimited locality suffixes supported by existing structured evidence.
-* Uses the same normalized location fields for the collapsed display, editor inputs, and Events Manager matching.
-* Preserves raw source metadata and reviewer overrides and does not fabricate component splits for existing composite addresses.
-* No raw evidence, Events Manager records, parser selection, report, cleanup, ticket, or scheduling behavior changes.
-
-= 0.2.23 =
-* Recovered the composite JSON-LD location address for display, editing, and Events Manager matching when structured street address data is absent.
-* Added structured street, city, state, ZIP, and country fields to newly normalized JSON-LD candidates.
-* Preserved reviewer address overrides as the highest-priority values and did not fabricate component splits for existing composite addresses.
-* No raw evidence, Events Manager records, parser selection, report, cleanup, ticket, or scheduling behavior changes.
-
-= 0.2.22 =
-* Renamed the candidate Venue heading and Venue name editor label to Location and Location name.
-* Renamed the Collect Eventbrite URL panel to Source and the Collect evidence button to Search Source.
-* Kept the Eventbrite URL placeholder, validator, form action, stored fields, and all importer behavior unchanged.
-
-= 0.2.21 =
-* Added independent click-to-open inline editors for candidate Title, Date, and Venue/address fields.
-* Added a Matching Location dropdown containing current Events Manager locations and storing only the candidate review location ID.
-* Restored a capability-checked, nonce-protected candidate field save handler with strict field-group allowlists.
-* Removed the unnecessary outer candidate-table GET form so inline POST forms remain valid and independent.
-* Raw source evidence and Events Manager records remain unchanged; edits are stored only as candidate reviewer overrides.
-
-= 0.2.20 =
-* Removed the redundant Collect URL page-title shortcut from the rendered admin header.
-* Kept the full Collect Eventbrite URL form and its collection action unchanged.
-* No candidate, parser, evidence, matching, report, cleanup, ticket, scheduling, or Events Manager behavior changes.
-
-= 0.2.19 =
-* Moved the existing Eventbrite API Settings, Exploratory Report, and Manual Data Removal controls above the source search and candidate list.
-* Added a read-only Current Version item sourced from the installed Great Imports version constant.
-* Arranged the four top utility/status items in a responsive row without duplicating or hiding controls.
-* No control actions, parser, evidence capture, candidate storage, matching, report, ticket, scheduling, cleanup, or Events Manager behavior changes.
-
-= 0.2.18 =
-* Added the complete stored candidate address beneath the venue name in the candidate list.
-* Added a Matching Location column immediately after Venue.
-* Displays a reviewer-selected Events Manager location when it is among the current suggestions; otherwise displays only an exact same-name or same-address suggestion.
-* Does not present weak partial suggestions as matches and does not create, update, assign, or save Events Manager locations.
-
-= 0.2.17 =
-* Removed the fixed admin-screen width cap and right utility sidebar so the candidate list uses the full available WordPress admin content width.
-* Moved the existing utility panels below the full-width candidate workflow and arranged them responsively without removing any controls.
-* Removed the candidate excerpt width cap so the title column can use the available table width.
-* No parser, evidence capture, candidate storage, report generation, ticket handling, scheduling, or Events Manager import behavior changes.
-
-= 0.2.16 =
-* Added a dedicated GI_Candidate_List_Table class that extends WordPress' WP_List_Table for candidate rows.
-* Replaced the hand-built candidate table output in the admin class with the dedicated list table display path.
-* Kept the candidate list free of fake checkboxes, hidden rows, and embedded dry-run/editor markup.
-* Reduced candidate-list CSS so WordPress list-table styling carries the table instead of custom report-card styling.
-* No parser, evidence capture, ticket handling, report generation, storage, or Events Manager behavior changes.
-
-= 0.2.15 =
-* Removed the custom title/description precheck card and returned the screen to one source collection form plus recent candidates.
-* Preserved Eventbrite collection, candidate storage, cleanup, report generation, settings, parser, and Events Manager boundaries unchanged.
-
-= 0.2.14 =
-* Source display reports now keep the exact user-entered Eventbrite URL for unsupported pages.
-* Eventbrite unsupported-page notices now reference the original URL instead of a normalized/stripped variant.
-* No parser, candidate, cleanup, Events Manager, ticket, scheduling, or image behavior changes.
-
-= 0.2.13 =
-* Fixed source display report availability after unsupported Eventbrite URLs by storing a normalized lookup key.
-* Added admin debug comments showing the stored lookup key and report count when a report is not yet rendered.
-* No source evidence deletion, parser behavior, candidate storage, cleanup, or Events Manager import behavior changes.
-
-= 0.2.12 =
-* Added source-page display reports for Eventbrite URL collection, with a button that downloads a private JSON report.
-* Captures rendered text, text links, images, JSON-LD summaries, meta tag names, event-card candidates, and Eventbrite bootstrap summaries for diagnosis.
-* Sanitizes secrets, scripts, styles, and likely tracking/session/query identifiers before download.
-* Does not change candidate creation, Events Manager import behavior, cleanup, or source evidence retention.
-
-= 0.2.11 =
-* Added unsupported-page diagnostics when an Eventbrite URL is reachable but no usable Eventbrite event evidence is found.
-* Stores a sanitized display snapshot, text metrics, links, images, JSON-LD summaries, and Eventbrite bootstrap keys for manual review.
-* Does not create candidates from unsupported pages and does not change Events Manager, cleanup, scheduling, ticket, or image behavior.
-
-= 0.2.10 =
-* Added JSON-LD fallback parsing for Eventbrite pages when embedded API data is absent.
-* Source display report downloads are now served from the Great Imports admin page instead of WordPress admin-post.php.
-* Report downloads include the collection URL in the filename and generated report payload for verification.
-
-= 0.2.9 =
-* Added source-page display report capture for unsupported Eventbrite pages, including rendered text, links, images, JSON-LD, meta tag, Eventbrite bootstrap, and event-card summaries.
-* No candidate creation from unsupported pages, no Events Manager writes, no tickets, no scheduling, and no image import.
-
-= 0.2.8 =
-* Manual Data Removal now includes Eventbrite API settings and private token state.
-* Added a full Great Imports data preview and removal flow that deletes plugin-owned candidates, evidence, metadata, options, transients, and version markers only.
-* No Events Manager events, Events Manager locations, tickets, media, posts, pages, categories, tags, or third-party content are removed.
-
-= 0.2.7 =
-* Added an admin-only Eventbrite API settings flow with private token storage and a candidate-only Eventbrite API collector.
-* API collection uses Eventbrite's official event and venue endpoints, records raw evidence internally, and creates review candidates only.
-* Does not import Events Manager events, locations, tickets, categories, images, recurring schedules, or publish content automatically.
-
-= 0.2.6 =
-* Hardens candidate collection with a host allow-list for eventbrite.com and www.eventbrite.com.
-* Adds candidate metadata fingerprints and source identifiers without changing Events Manager import behavior.
-
-= 0.2.5 =
-* Adds the Great Imports admin page with a collect-only Eventbrite URL form and recent candidates table.
-* Stores Eventbrite URL evidence as private gi_candidate posts without writing to Events Manager.
-
-= 0.2.4 =
-* Scaffold Great Imports plugin with admin shell, versioning, and candidate post type.
-
-= 0.2.3 =
-* Initial Great Imports plugin scaffold.
+Earlier development notes are kept in BUILD-VERIFICATION.txt.

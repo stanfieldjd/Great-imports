@@ -1,94 +1,58 @@
 <?php
-/**
- * Main plugin coordinator.
- *
- * @package GreatImports
- */
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-post-types.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-url-validator.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-http-client.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-http-evidence-client.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-html-evidence-extractor.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-jsonld-parser.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-store.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-review.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-evidence-store.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-client.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-api-normalizer.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-import-preview-builder.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-page-display-report-builder.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-source-coverage-audit-builder.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-data-cleaner.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-eventbrite-importer.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-exploratory-report.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-candidate-list-table.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-em-importer.php';
-require_once GREAT_IMPORTS_DIR . 'includes/class-gi-admin.php';
+defined( 'ABSPATH' ) || exit;
 
 final class GI_Plugin {
-    /** @var GI_Plugin|null */
-    private static $instance = null;
+    private static ?GI_Plugin $instance = null;
 
-    /**
-     * Get the singleton instance.
-     */
-    public static function instance() {
+    public static function instance(): GI_Plugin {
         if ( null === self::$instance ) {
             self::$instance = new self();
         }
-
         return self::$instance;
     }
 
-    private function __construct() {}
+    public function boot(): void {
+        add_action( 'init', array( 'GI_Storage', 'register_post_types' ) );
+        add_action( 'init', array( 'GI_Scheduler', 'ensure_schedule' ), 20 );
+        add_action( GI_Scheduler::HOOK, array( 'GI_Scheduler', 'run_due_sources' ) );
 
-    /**
-     * Register plugin hooks.
-     */
-    public function boot() {
-        add_action( 'init', array( 'GI_Post_Types', 'register' ) );
-
-        $api_client       = new GI_Eventbrite_API_Client();
-        $evidence_store   = new GI_Evidence_Store();
-        $preview_builder  = new GI_Import_Preview_Builder();
-        $display_builder  = new GI_Page_Display_Report_Builder();
-        $coverage_auditor = new GI_Source_Coverage_Audit_Builder();
-        $admin            = new GI_Admin(
-            new GI_Eventbrite_Importer(
-                new GI_Url_Validator(),
-                new GI_Http_Client(),
-                new GI_Jsonld_Parser(),
-                new GI_Candidate_Store(),
-                $api_client,
-                new GI_Eventbrite_API_Normalizer(),
-                $evidence_store,
-                new GI_HTTP_Evidence_Client(),
-                new GI_HTML_Evidence_Extractor()
-            ),
-            $api_client,
-            new GI_Exploratory_Report( $api_client, $evidence_store, $preview_builder, $display_builder, $coverage_auditor ),
-            $preview_builder,
-            new GI_EM_Importer( $preview_builder )
-        );
-        $admin->register_hooks();
-
-        if ( ! wp_next_scheduled( 'great_imports_run_recurring_sources' ) ) {
-            wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'great_imports_run_recurring_sources' );
+        if ( is_admin() ) {
+            add_action( 'admin_init', array( $this, 'maybe_upgrade' ), 5 );
+            GI_Admin::instance()->boot();
         }
     }
 
-    public static function activate() {
-        if ( ! wp_next_scheduled( 'great_imports_run_recurring_sources' ) ) {
-            wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'great_imports_run_recurring_sources' );
+    public function maybe_upgrade(): void {
+        $installed = (string) get_option( 'gi_plugin_version', '' );
+        if ( GI_VERSION === $installed ) {
+            return;
         }
+        GI_Storage::register_post_types();
+        GI_Storage::install_defaults();
+        $repair = GI_Storage::repair_candidate_queue();
+        $source_repair = GI_Storage::repair_duplicate_unrun_sources();
+        $event_link_repair = GI_Storage::repair_events_manager_candidate_links();
+        $location_country_repair = GI_Events_Manager::repair_invalid_us_location_countries();
+        update_option( 'gi_last_queue_repair', array_merge( $repair, $source_repair, $event_link_repair, $location_country_repair, array( 'version' => GI_VERSION, 'time' => current_time( 'mysql' ) ) ), false );
+        update_option( 'gi_plugin_version', GI_VERSION, false );
     }
 
-    public static function deactivate() {
-        wp_clear_scheduled_hook( 'great_imports_run_recurring_sources' );
+    public static function activate(): void {
+        GI_Storage::register_post_types();
+        GI_Storage::install_defaults();
+        $repair = GI_Storage::repair_candidate_queue();
+        $source_repair = GI_Storage::repair_duplicate_unrun_sources();
+        $event_link_repair = GI_Storage::repair_events_manager_candidate_links();
+        $location_country_repair = GI_Events_Manager::repair_invalid_us_location_countries();
+        update_option( 'gi_last_queue_repair', array_merge( $repair, $source_repair, $event_link_repair, $location_country_repair, array( 'version' => GI_VERSION, 'time' => current_time( 'mysql' ) ) ), false );
+        update_option( 'gi_plugin_version', GI_VERSION, false );
+        GI_Scheduler::ensure_schedule();
+        flush_rewrite_rules( false );
+    }
+
+    public static function deactivate(): void {
+        GI_Scheduler::clear_schedule();
+        flush_rewrite_rules( false );
     }
 }

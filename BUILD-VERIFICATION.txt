@@ -1,0 +1,197 @@
+Great Imports 4.9.8 Plugin Check repair verification
+
+4.9.9 live Plugin Check warning repair:
+- Installed and verified Great Imports 4.9.8 in WordPress.
+- Ran live Plugin Check against installed Great Imports.
+- Live result was 0 errors and 103 warnings.
+- Added explicit annotations for intentional admin request reads after nonce-protected handlers and sanitized read-only filters.
+- Added explicit annotations for intentional direct Events Manager database synchronization and importer-state metadata queries.
+- Replaced the remaining native time-slot table-name interpolation with `%i` identifier placeholders.
+- Trimmed the packaged readme changelog to avoid WordPress.org parser truncation.
+
+4.9.8 live Plugin Check repair:
+- Installed and verified Great Imports 4.9.7 in WordPress.
+- Ran live Plugin Check against installed Great Imports.
+- Live result was 4 errors and 0 warnings.
+- All four remaining errors were MissingTranslatorsComment findings in includes/class-gi-admin.php for location-display placeholder strings.
+- Replaced ternary translation calls with explicit branches so each placeholder string has its own directly adjacent translators comment.
+
+4.9.7 Plugin Check repair:
+- Verified the 2026-07-30 10:36:32 report still matches the previous uploaded finding set after removing the timestamp, meaning the live scan was still checking the old installed plugin folder.
+- Verified the package header includes License and License URI.
+- Verified readme includes Tested up to, five tags, a short description under the WordPress.org limit, and Stable tag 4.9.7.
+- Removed remaining scanner-sensitive table-name interpolation in Events Manager SQL by using `%i` placeholders.
+- Removed the CSV temporary-file write path and switched CSV row parsing to `str_getcsv()`.
+- Repositioned remaining translator comments directly beside their placeholder strings.
+- Verified no raw `date()`, `fopen()`, `fwrite()`, `fclose()`, `unlink()`, `@unlink`, backticked `{$table}` SQL interpolation, or `SHOW COLUMNS FROM `{$table}` pattern remains.
+- Verified every PHP file passes PHP 8.5.8 syntax checking.
+
+4.9.0 festival time-slot workflow:
+- Standard events keep the existing short editor and do not show festival controls.
+- Festival events reveal one plain schedule editor with one row per performance or activity.
+- Each schedule row supports its own date, start/end time, performer/activity, stage/area, place, and optional ticket link.
+- Simultaneous stage rows remain distinct in Great Imports metadata and the public schedule.
+- Unique date/time windows are written directly to Events Manager em_timeranges and em_event_timeslots tables.
+- Editing a festival updates its native time slots; removed Great Imports slots are made inactive rather than destructively deleted.
+- Switching an imported festival back to a standard event deactivates its previously imported native time slots.
+- JSON and CSV files accept festival_slots, timeslots, or schedule data; JSON-LD subEvent schedules are collected into the master festival.
+- Festival bounds are derived from the earliest and latest schedule rows, including overnight slots.
+- PHP 8.5.8 syntax checking passed for every PHP file; admin.js passed Node syntax checking.
+- Normalization tests passed for multi-day bounds, overnight rollover, simultaneous stages, rich-slot retention, festival recurrence isolation, and unchanged standard events.
+
+4.7.1 approval follow-through:
+- Approving one reviewed event clears only its contextual-review hold.
+- Other data-quality holds remain in place.
+- The approval does not change global filtering or approve other events.
+
+4.7.0 pornography and explicit-nudity filtering:
+- Settings contains one plainly named enable switch, Standard/Strict sensitivity, custom blocked phrases, and trusted websites.
+- Classification considers title, description, organizer, venue, categories, tags, event/ticket/source URLs, and image URLs together.
+- Clear pornography or explicit-nudity context is blocked before entering the event queue.
+- Ambiguous, artistic, educational, medical, historical, or suggestive context is retained as Needs review.
+- A reviewed event can be approved individually without disabling the global filter.
+- Draft and Publish actions reassess the current event immediately before writing to Events Manager.
+- A WordPress filter hook permits an optional external text/image classifier to refine the built-in result.
+
+4.6.2 custom filtering:
+- Settings contains plain-language include and exclude keyword fields.
+- Include keywords use OR matching across title, description, venue, and categories.
+- Any exclude-keyword match removes the event from the queue.
+- New single, bulk, recurring, and file sources inherit the global filter defaults.
+- Saved URLs retain their own filters.
+
+4.6.1 Settings cleanup:
+- Import defaults contains only duplicate handling, places, and pictures.
+- Settings has no nested advanced-import accordion or author dropdown.
+- Ticket details, organizer details, category permission, and completed Run once cleanup are automatic.
+- Collection limits and System and uninstall contain no duplicate controls.
+
+4.6.0 activity placement:
+- The primary menu contains Add events, Run once queue, Recurring URLs, and Settings.
+- Import activity is accessible from Settings and does not appear as a main tab.
+- Settings remains selected while viewing Import activity.
+- Activity records older than 30 days are removed automatically.
+
+4.5.1 menu balance:
+- Add events, Run once queue, Recurring URLs, History, and Settings use one equal tab system.
+- Add events has two balanced outcome paths.
+- Recurring source controls use three equal menu positions.
+- Queue actions and History filters align to predictable grids.
+- Settings sections share consistent headers and action placement.
+
+4.4.1 navigation consistency:
+- Add events, Run once queue, Recurring URLs, History, and Settings use the same markup and visual treatment on every plugin page.
+- Only the active state changes as the user moves between pages.
+- The alternate compact queue navigation was removed.
+
+4.4.0 workspace separation:
+- Run once results appear only in the Run once queue.
+- Saved recurring URLs appear only on the Recurring URLs page.
+- Both pages retain a compact switcher and an Add events route.
+- Source updates, candidate outcomes, bulk outcomes, schedules, manual checks, deletion, restoration, and pagination return to the workspace that owns the source.
+
+4.3.0 intake correction:
+- One input route accepts a single URL, multiple URLs separated by lines, or an ICS/CSV/JSON file.
+- Run once and Save recurring are selected on the intake page before a source is created.
+- Posting outcome and optional forced location are selected before the first check.
+- Save recurring runs the first check immediately and enables the chosen schedule.
+- The results page is grouped by URL and no longer repeats the Run once or Save recurring decision.
+- One-time URL cards contain their queue; saved recurring URL cards additionally expose recurring filters, schedule, and Check now.
+- Bulk selection counts, enabled outcomes, and submitted candidate IDs are scoped to the URL that owns the queue.
+- An invisible page-level heading anchors WordPress admin notices outside every URL card.
+- Re-entering an existing URL applies Save recurring, while Run once preserves an existing recurring schedule.
+
+4.1.0 simplicity rebuild:
+- Everyday workflow is now presented as two steps: Add a link, then Review events.
+- Advanced matching, place, picture, ownership, category, and filter choices remain available behind optional panels.
+- The link queue now shows only the link, last check, and review action.
+- Draft, publish, skip, save, schedule, and direct Events Manager results use plain outcome language.
+- The complete 4.0.8 control and direct-database contract remains required below.
+
+4.0.8 repair:
+- Add Events always begins in review mode.
+- Valid saved event edits return to Ready instead of Needs a check.
+- Completed event fields are read-only until restored.
+- Search and ready-selection wording states the displayed-page scope.
+- Detected venue fields disable when an existing venue is selected.
+- Settings ranges match stored limits.
+- Current pagination is inert and exposes aria-current.
+- Diagnostics downloads are not disabled by loading-state JavaScript.
+
+4.0.7 repair:
+- Removed the duplicate Correct venue details button and its helper text.
+- Venue details found is now the only control that opens and closes detected venue fields.
+- The venue-selection dropdown remains the single choice between the detected venue and existing Events Manager locations.
+
+4.0.6 repairs:
+- The live Publish now failure was reproduced: the Events Manager row was active while the WordPress event post remained a draft.
+- Every single or repeating occurrence now receives a final WordPress status synchronization after its Events Manager row exists, followed by a status read-back. A mismatched result returns an error instead of claiming the event was published.
+- Calendar export resources such as webcal URLs, .ics/.ical files, and `?format=ical` links are discarded as ticket-purchase URLs during normalization and evidence selection.
+
+Reference checked:
+- import-eventbrite-events.1.8.1 admin templates, admin JavaScript, settings screen, history/list-table implementation, Events Manager direct-write class, and packaged screenshots.
+
+Implemented in this build:
+- Simplified the normal workflow after reviewing Import Eventbrite Events 1.8.1: one link-or-file choice, one Find events action, shorter supporting text, and technical terminology moved out of the primary path.
+- Renamed user-facing source and candidate concepts to event links and events found, and clarified Draft, Publish, Save, and Skip outcomes in ordinary language.
+- Reworked the active Great Imports admin styling toward a WordPress-native Eventbrite Import baseline.
+- Changed the top admin label from Event Import Workspace to Import Events.
+- Changed the primary workflow tabs to Import and Sources.
+- Restyled the full admin surface, including header, nav, status meters, intake screen, source queue, source command center, import-rule panel, schedule panel, candidate list, bulk action bar, candidate drawer, history rows, settings sections, and mobile layout.
+- Kept Great Imports broader than Eventbrite Import: URL/file intake remains one route that detects Eventbrite event pages, Eventbrite organizer pages, public listing pages, feeds, and files.
+- Changed bulk button emphasis so Publish selected is the primary publishing button and Import selected as drafts is secondary.
+- Removed stale JavaScript dependency on the old gi-mapping-row selector.
+- Neutralized the old dark gi-next-steps panel style so it cannot return if older markup is rendered.
+- Replaced the candidate drawer's JavaScript-only Save, Draft, Publish, Ignore, and Restore handoff with native named submit buttons.
+- Preserved each named submit button's action in a hidden request field before applying its disabled busy state; browsers otherwise omit disabled candidate_action and bulk_action controls.
+- Replaced externally associated bulk checkboxes with an explicit, deterministic bulk candidate payload.
+- Corrected Select all ready so it selects every ready candidate, including ready candidates outside the current search filter.
+- Corrected selected-count and bulk-action safety logic to represent the complete selection.
+- Added input, change, and search event recovery for candidate filtering.
+- Added an explicit all-day field identity and visible time-field state synchronization.
+- Added discovery of same-site event URLs embedded in script/page data so JavaScript-rendered organizer pages are not limited to visible anchor tags.
+- Made the main Find events action create and run every submitted URL/file source in the same request. It no longer stops at a Not run yet source and asks for a second Find events now click.
+- Changed repeat-run wording to Check again after a source has already run.
+- Replaced ambiguous Clear wording with Clear selection.
+- Replaced browser-native confirm dialogs for source deletion, history clearing, and plugin reset with visible two-step in-page controls that do not freeze or disappear behind the browser.
+
+Live 4.0.1 failures reproduced before this repair:
+- Candidate drawer Save changes did not persist edits.
+- Candidate drawer Import as draft created no Events Manager event.
+- Candidate drawer Publish created no Events Manager event.
+- Candidate drawer Ignore did not change candidate state.
+- Bulk Import selected as drafts lost the selected candidate and returned "Choose events and an action."
+- Bulk Publish selected created no Events Manager event.
+- Bulk Ignore selected succeeded.
+- Clearing candidate search left nonmatching candidates hidden.
+- Eventbrite organizer source collected zero events.
+- Signal public listing collected 75 records and produced 5 ready plus 19 needs-review candidates.
+- The supplied individual Eventbrite event became ready when lookback changed from 0 to 30 days.
+- The live Find events action could stop at a Not run yet source and force a redundant Find events now click.
+- The live source-delete confirmation could hold the cloud browser connection in a native JavaScript dialog.
+
+Workspace validation performed:
+- CSS parsed successfully with CSSOM.
+- admin.js passed Node syntax checking.
+- Every plugin PHP file passed PHP 8.5.8 syntax checking.
+- A focused browser-DOM simulation passed search filtering and recovery, Select all ready, bulk candidate ID transfer, bulk Draft/Publish action intent, candidate Save/Draft/Publish/Ignore action intent, and all-day time-field synchronization.
+- A PHP collector simulation passed extraction and same-host filtering of absolute and relative Eventbrite event URLs embedded in organizer-page script data.
+- Click-through DOM simulation passed for the three requested URL shapes:
+  - https://www.eventbrite.com/e/high-on-fire-live-at-the-boneyard-heavy-valley-two-nights-tickets-1983872010588?aff=ebdsoporgprofile
+  - https://www.thesignaltn.com/tickets
+  - https://www.eventbrite.com/o/58111834153
+- The URL simulation checked source detection labels, Continue validation, Edit import rules, Run once intent, Save source intent, candidate drawer open/close, detected-location editing, and candidate Save/Draft/Publish/Ignore action intent.
+- Secondary control simulation checked settings accordions, source search, candidate search/no-results/recovery, one-location source-rule reveal, schedule cadence reveal, select visible, recurrence reveal, bulk action enabling/disabling, and Escape-to-close behavior.
+- A second focused UI simulation passed source-mode switching, one-click source intent, ready-only selection, clear selection, select-shown safety with held candidates, candidate search, editor open/close, all-day controls, and recurrence controls.
+
+Live verification status:
+- Great Imports 4.0.4 was installed and activated on the live WordPress site.
+- Save as drafts created Events Manager event post 5222 with draft status, July 24–25 dates, 7:00 PM–11:30 PM times, America/New_York timezone, and Events Manager location ID 421.
+- The same action directly created Events Manager location post 5221 for The Boneyard with 26 Station Street, Chattanooga, TN 37408, US. No Events Manager editor save was required.
+- Test event 5222 and test location 5221 were permanently deleted after verification. Event counts returned to All 215 / Published 215 with no drafts, and location counts returned to All 64 / Published 64.
+- Source 5188 was deleted; source 5185 was preserved.
+- Great Imports 4.0.5 contains the follow-through and in-page confirmation repairs found during that live session. Publish, Edit/Save changes, Skip, organizer, and public-listing live verification remain to be completed after 4.0.5 is installed.
+4.9.1
+- Added visible festival-lineup recovery for public sites without Event JSON-LD.
+- Added weekday schedule rows that map after the festival start date is entered.
+- Added annual-festival identification without overwriting prior yearly editions.
