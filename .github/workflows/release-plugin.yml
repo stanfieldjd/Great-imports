@@ -1,0 +1,74 @@
+name: Release versioned plugin ZIP
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: great-imports-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@v4
+
+      - name: Read plugin version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n "s/.*GREAT_IMPORTS_VERSION', '\([^']*\)'.*/\1/p" great-imports.php)"
+          if [ -z "$version" ]; then
+            echo "Could not read GREAT_IMPORTS_VERSION from great-imports.php." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build WordPress-ready ZIP
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p build/great-imports
+          git archive --format=tar HEAD | tar -x -C build/great-imports
+          rm -rf build/great-imports/.github
+          rm -rf build/great-imports/build
+          rm -f build/great-imports/.gitignore
+          (
+            cd build
+            zip -qr "../great-imports-$VERSION.zip" great-imports
+          )
+
+      - name: Create versioned GitHub release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          gh release create "$VERSION" "great-imports-$VERSION.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Great Imports $VERSION" \
+            --generate-notes
